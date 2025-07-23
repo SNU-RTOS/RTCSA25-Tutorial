@@ -1,0 +1,61 @@
+# Makefile
+
+# Base directories
+ROOT_DIR := $(shell pwd)
+SRC_DIR := src
+OBJ_DIR := obj
+TARGET := pipelining
+TARGET_PATH := output/$(TARGET)
+
+# Compiler settings
+CXX := g++
+CXXFLAGS := -std=c++17  -O3
+
+
+# Linker flags
+LDFLAGS := -Wl,-rpath=\$$ORIGIN/../lib \
+	-lpthread \
+	-ltensorflowlite  \
+	-ltensorflowlite_gpu_delegate -lEGL -lGLESv2 \
+	-lopencv_core -lopencv_imgproc -lopencv_imgcodecs \
+	-ljsoncpp 
+
+# Include paths
+INCS := -Iinc \
+		-Isrc \
+		-I/usr/include \
+		-I/usr/include/opencv4
+
+# Library paths
+LIBS := -Llib 
+
+# Source files and object files
+SRCS := $(TARGET).cpp util.cpp
+HDRS := $(shell find $(SRC_DIR) -name '*.hpp')
+OBJS := $(SRCS:%.cpp=%.o)
+OBJECTS = $(patsubst %.o,$(OBJ_DIR)/%.o,$(OBJS))
+DEPS = $(OBJECTS:.o=.d)
+
+.PHONY: all clean
+
+# Default target
+all: $(TARGET_PATH)
+	@echo The build completed successfully
+
+# Object file build rule
+$(OBJ_DIR)/%.o : $(SRC_DIR)/%.cpp $(HDRS)
+	@mkdir -p $(@D)
+	$(CXX) $(CXXFLAGS) $(INCS) $(LIBS) -c $< -o $@ -MD $(LDFLAGS)
+
+# Executable build rule
+$(TARGET_PATH): $(OBJECTS) $(HDRS)
+	$(CXX) $(CXXFLAGS) $(INCS) $(LIBS) $(OBJECTS) -o $(TARGET_PATH) $(LDFLAGS)
+
+# Clean rule
+clean:
+	rm -f $(TARGET_PATH)
+	rm -f $(OBJECTS)
+	rm -f $(DEPS)
+
+# Include auto-generated dependency files
+-include $(DEPS)

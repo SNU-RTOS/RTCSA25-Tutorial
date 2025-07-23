@@ -1,0 +1,15 @@
+__pycache__
+build
+obj
+output
+*.txt
+*.log
+external
+lib/*
+inc/*
+models/*
+backup/*
+models/*
+.backup
+.vscode
+.env
