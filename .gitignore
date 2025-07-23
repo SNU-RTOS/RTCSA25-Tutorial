@@ -13,3 +13,4 @@ models/*
 .backup
 .vscode
 .env
+.ws_pip
