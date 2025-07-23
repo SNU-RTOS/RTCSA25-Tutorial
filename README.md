@@ -42,10 +42,16 @@ Target: Students working on edge AI systems using lightweight inference engines
 │   ├── build-litert.sh 
 │   ├── build-litert_gpu_delegate.sh    
 │   └── install_prerequisites.sh
+├── model_downloader.py                 # Downloads pretrained resnet50 (.h5 format)
+├── model_h5_to_tflite.py               # Converts (.h5) format to (.tflite) format
+├── model_slicer.py                     # 
+├── setup.sh                            # Environment setup script
 ├── Makefile_*                          # Makefiles for different targets
 ├── pipeline_100.sh                     # Script that performs pipelined parallel inference on the same image 100 times
 ├── setup.sh                            # Environment setup script
 └── build_and_run.sh                    # Build and run automation script
+
+
 ```
 
 ## Prerequisites
