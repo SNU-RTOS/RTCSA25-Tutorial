@@ -7,7 +7,6 @@
 run_main() {
   local model="$1"         # Example: ./models/resnet50.tflite
   local image="$2"         # Example: ./images/_images_1.png
-  local label="$3"         # Example: ./labels.json
 
   local model_base
   model_base=$(basename "${model%.*}")
@@ -21,10 +20,10 @@ run_main() {
     make -f Makefile_inference_driver -j4
 
     echo "[INFO] Run inference_driver"
-    ./output/inference_driver "$model" "$image" "$label"
+    ./output/inference_driver "$model" "$image"
   )
 }
 
 
 ##################### main #####################
-run_main ./models/resnet50.tflite ./images/_images_1.png ./labels.json
+run_main ./models/resnet50.tflite ./images/_images_1.png

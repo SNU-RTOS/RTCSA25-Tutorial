@@ -19,15 +19,15 @@ int main(int argc, char *argv[])
 {
     std::cout << "====== main_cpu ====" << std::endl;
 
-    if (argc != 4)
+    if (argc != 3)
     {
-        std::cerr << "Usage: " << argv[0] << " <model_path> <image_path> <label_json_path>" << std::endl;
+        std::cerr << "Usage: " << argv[0] << " <model_path> <image_path>" << std::endl;
         return 1;
     }
 
     const std::string model_path = argv[1];
     const std::string image_path = argv[2];
-    const std::string label_path = argv[3];
+    const std::string label_path = "./labels.json";
 
     /* Load model */
     util::timer_start("Load Model");

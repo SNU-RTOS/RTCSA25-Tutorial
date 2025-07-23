@@ -13,7 +13,7 @@ fi
 ########## Generate .env ##########
 ROOT_PATH=$(pwd)
 EXTERNAL_PATH=${ROOT_PATH}/external
-LITERT_PATH=${EXTERNAL_PATH}/liteRT
+LITERT_PATH=${EXTERNAL_PATH}/litert
 
 cat <<EOF > .env
 ROOT_PATH=${ROOT_PATH}
@@ -31,7 +31,7 @@ echo "[INFO] ROOT_PATH: ${ROOT_PATH}"
 echo "[INFO] EXTERNAL_PATH: ${EXTERNAL_PATH}"
 echo "[INFO] LITERT_PATH: ${LITERT_PATH}"
 
-mkdir -p "${EXTERNAL_PATH}" "${ROOT_PATH}/inc" "${ROOT_PATH}/lib" "${ROOT_PATH}/obj" "${ROOT_PATH}/output"
+mkdir -p "${EXTERNAL_PATH}" "${ROOT_PATH}/inc" "${ROOT_PATH}/lib" "${ROOT_PATH}/obj" "${ROOT_PATH}/output" "${ROOT_PATH}/models"
 
 ########## Setup external sources ##########
 cd "${EXTERNAL_PATH}"

@@ -16,6 +16,6 @@ from tensorflow.keras.applications import ResNet50
 model = ResNet50(weights='imagenet')
 
 # Save the model in .h5 format
-model.save("resnet50.h5")
+model.save("./models/resnet50.h5")
 
 print("Model saved as resnet50.h5")

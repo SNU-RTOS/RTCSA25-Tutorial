@@ -134,24 +134,30 @@ def prepare_next_stage_inputs(sub_model, stage_outputs):
         next_inputs[layer_name] = actual_output
     return next_inputs
 
-def save_models(output_dir, model_name, sub_model, stage_num, coral=False):
+def save_models(output_dir, model_name, sub_model, stage_num, coral=False, single_stage=False):
     converter = tf.lite.TFLiteConverter.from_keras_model(sub_model)
     tflite_model = converter.convert()
 
-    # Create output directory if it does not exist
-    output_path = os.path.join(output_dir, model_name)
-    os.makedirs(output_path, exist_ok=True)
+    os.makedirs(output_dir, exist_ok=True)
 
-    tflite_path = os.path.join(output_path, f"sub_model_{stage_num+1}.tflite")
+    if single_stage:
+        filename = f"{model_name}.tflite"
+    else:
+        filename = f"sub_model_{stage_num+1}.tflite"
+
+    tflite_path = os.path.join(output_dir, filename)
+
     with open(tflite_path, 'wb') as f:
         f.write(tflite_model)
-    print(f"Saved sliced tflite model {stage_num+1} to: {tflite_path}")
+    print(f"Saved sliced tflite model to: {tflite_path}")
+
     return tflite_model
+
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description='Pipeline Stage')
     parser.add_argument('--model-path', type=str, required=True, help='Path to original h5 model')
-    parser.add_argument('--output-dir', type=str, default='./submodels')
+    parser.add_argument('--output-dir', type=str, default='./models')
     return parser.parse_args()
 
 def main():
@@ -202,7 +208,11 @@ def main():
         (points[i] + (0 if i == 0 else 1), points[i+1])
         for i in range(len(points)-1)
     ]
-    print(f"Slicing ranges: {slice_ranges}")
+
+    if n==1:
+        print("No slicing needed. Continuing with the original model.")
+    else:
+        print(f"Slicing ranges: {slice_ranges}")
 
     # Create a sample dummy input tensor for the first submodel
     sample_input = create_sample_input()
@@ -224,7 +234,8 @@ def main():
         sub_models.append(sub_model)
 
         # Convert and save the sliced submodel to TFLite
-        tflite_models.append(save_models(args.output_dir, model_name, sub_model, i))
+        single_stage = (n == 1)
+        tflite_models.append(save_models(args.output_dir, model_name, sub_model, i, single_stage=single_stage))
 
         
 if __name__ == "__main__":
