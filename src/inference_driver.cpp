@@ -1,18 +1,12 @@
 #include <iostream>
-#include <fstream>
 #include <vector>
-#include <algorithm>
-#include <numeric>
-
-#include "opencv2/opencv.hpp" //opencv
-
-#include "tflite/delegates/xnnpack/xnnpack_delegate.h" //for xnnpack delegate
+#include "opencv2/opencv.hpp"
+#include "tflite/delegates/xnnpack/xnnpack_delegate.h"
 #include "tflite/delegates/gpu/delegate.h"
-#include "tflite/model_builder.h"
 #include "tflite/interpreter_builder.h"
 #include "tflite/interpreter.h"
 #include "tflite/kernels/register.h"
-#include "tflite/model.h"
+#include "tflite/model_builder.h"
 #include "util.hpp"
 
 int main(int argc, char *argv[])
