@@ -30,7 +30,7 @@ def convert_h5_to_tflite(h5_path, output_dir):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Convert .h5 Keras model to .tflite")
-    parser.add_argument('--h5-path', type=str, default='./models', help="Path to the input .h5 model")
+    parser.add_argument('--h5-path', type=str, default='./models/resnet50.h5', help="Path to the input .h5 model")
     parser.add_argument('--output-dir', type=str, default='./models', help="Directory to save .tflite model")
     args = parser.parse_args()
 

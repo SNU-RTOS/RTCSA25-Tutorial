@@ -15,6 +15,7 @@ CXXFLAGS := -std=c++17
 LDFLAGS := -Wl,-rpath=\$$ORIGIN/../lib \
 	-lpthread \
 	-ltensorflowlite \
+	-ltensorflowlite_gpu_delegate -lEGL -lGLESv2 \
 	-lopencv_core -lopencv_imgproc -lopencv_imgcodecs \
 	-ljsoncpp
 

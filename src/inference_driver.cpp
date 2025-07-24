@@ -8,6 +8,7 @@
 #include "opencv2/opencv.hpp" //opencv
 
 #include "tflite/delegates/xnnpack/xnnpack_delegate.h" //for xnnpack delegate
+#include "tflite/delegates/gpu/delegate.h"
 #include "tflite/model_builder.h"
 #include "tflite/interpreter_builder.h"
 #include "tflite/interpreter.h"
@@ -51,13 +52,19 @@ int main(int argc, char *argv[])
 
     /* Apply XNNPACK delegate */
     util::timer_start("Apply Delegate");
-    TfLiteXNNPackDelegateOptions xnnpack_opts = TfLiteXNNPackDelegateOptionsDefault();
-    TfLiteDelegate *xnn_delegate = TfLiteXNNPackDelegateCreate(&xnnpack_opts);
+    // TfLiteXNNPackDelegateOptions xnnpack_opts = TfLiteXNNPackDelegateOptionsDefault();
+    // TfLiteDelegate *xnn_delegate = TfLiteXNNPackDelegateCreate(&xnnpack_opts);
+    TfLiteGpuDelegateOptionsV2 opts = TfLiteGpuDelegateOptionsV2Default();
+    TfLiteDelegate* gpu_delegate = TfLiteGpuDelegateV2Create(&opts);
     bool delegate_applied = false;
-    if (interpreter->ModifyGraphWithDelegate(xnn_delegate) == kTfLiteOk)
+    if (interpreter->ModifyGraphWithDelegate(gpu_delegate) == kTfLiteOk)
     {
         delegate_applied = true;
     }
+    // if (interpreter->ModifyGraphWithDelegate(xnn_delegate) == kTfLiteOk)
+    // {
+    //     delegate_applied = true;
+    // }
     else
     {
         std::cerr << "Failed to Apply XNNPACK Delegate" << std::endl;
@@ -112,11 +119,6 @@ int main(int argc, char *argv[])
     if (interpreter->Invoke() != kTfLiteOk)
     {
         std::cerr << "Failed to invoke interpreter" << std::endl;
-        /* Deallocate delegate */
-        if (xnn_delegate)
-        {
-            TfLiteXNNPackDelegateDelete(xnn_delegate);
-        }
         return 1;
     }
 
@@ -159,9 +161,13 @@ int main(int argc, char *argv[])
     std::cout << "========================" << std::endl;
 
     /* Deallocate delegate */
-    if (xnn_delegate)
+    // if (xnn_delegate)
+    // {
+    //     TfLiteXNNPackDelegateDelete(xnn_delegate);
+    // }
+    if (gpu_delegate)
     {
-        TfLiteXNNPackDelegateDelete(xnn_delegate);
+        TfLiteXNNPackDelegateDelete(gpu_delegate);
     }
     return 0;
 }

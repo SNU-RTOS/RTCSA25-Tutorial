@@ -13,4 +13,4 @@ for i in {1..100}; do
 done
 
 # Execute
-./output/pipelining "$MODEL0" "$MODEL1" "${IMAGE_ARGS[@]}" --input-rate=$INPUT_RATE
+./output/pipelined_inference_driver "$MODEL0" "$MODEL1" "${IMAGE_ARGS[@]}" --input-rate=$INPUT_RATE

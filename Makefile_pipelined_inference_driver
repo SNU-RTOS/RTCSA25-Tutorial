@@ -4,7 +4,7 @@
 ROOT_DIR := $(shell pwd)
 SRC_DIR := src
 OBJ_DIR := obj
-TARGET := pipelining
+TARGET := pipelined_inference_driver
 TARGET_PATH := output/$(TARGET)
 
 # Compiler settings

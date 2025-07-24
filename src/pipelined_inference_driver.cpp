@@ -226,13 +226,13 @@ int main(int argc, char* argv[]) {
     tflite::InterpreterBuilder(*model1, resolver)(&interp1);
     util::timer_stop("main:build_interpreters");
 
-    interp0->SetNumThreads(1);
-    interp1->SetNumThreads(4);
+    interp0->SetNumThreads(4);
+    interp1->SetNumThreads(1);
 
     util::timer_start("main:apply_delegate");
     TfLiteGpuDelegateOptionsV2 opts = TfLiteGpuDelegateOptionsV2Default();
     TfLiteDelegate* gpu = TfLiteGpuDelegateV2Create(&opts);
-    interp0->ModifyGraphWithDelegate(gpu);
+    interp1->ModifyGraphWithDelegate(gpu);
     util::timer_stop("main:apply_delegate");
 
     util::timer_start("main:allocate_tensors");
