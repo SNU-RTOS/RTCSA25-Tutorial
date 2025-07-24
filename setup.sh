@@ -63,3 +63,9 @@ sudo apt install -y libopencv-dev libjsoncpp-dev
 # install python packages into virtual environment
 echo "[INFO] Installing Python packages into .ws_pip..."
 pip install tensorflow==2.12.0
+
+# download ResNet50
+python model_downloader.py
+
+# convert resnet50.h5 to resnet50.tflie
+python model_h5_to_tflite.py
