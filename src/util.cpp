@@ -139,38 +139,43 @@ cv::Mat util::preprocess_image(cv::Mat &image, int target_height, int target_wid
     return float_image;
 }
 
-// util.hpp, util::preprocess_image 수정안
 cv::Mat util::preprocess_image_resnet(cv::Mat &image, int target_height, int target_width)
 {
+    // Get original image dimensions
     int h = image.rows, w = image.cols;
+
+    // Compute scale factor to resize the shorter side to 256
     float scale = 256.0f / std::min(h, w);
     int new_h = static_cast<int>(h * scale);
     int new_w = static_cast<int>(w * scale);
 
+    // Resize image while maintaining aspect ratio
     cv::Mat resized;
     cv::resize(image, resized, cv::Size(new_w, new_h), 0, 0, cv::INTER_LINEAR);
 
+    // Calculate crop coordinates to center crop to target size
     int x = (new_w - target_width) / 2;
     int y = (new_h - target_height) / 2;
     cv::Rect crop(x, y, target_width, target_height);
+
+    // Perform center crop
     cv::Mat cropped = resized(crop);
 
-    // BGR 순서 유지, float32 변환 (scale=1.0)
+    // Convert to float32, preserve BGR order, scale factor = 1.0
     cv::Mat float_image;
     cropped.convertTo(float_image, CV_32FC3, 1.0);
 
-    // 채널별 ImageNet Caffe 평균값
+    // Subtract ImageNet Caffe mean values for B, G, R channels
     const float mean[3] = {103.939f, 116.779f, 123.68f};
-
     std::vector<cv::Mat> channels(3);
     cv::split(float_image, channels);
     for (int c = 0; c < 3; ++c)
         channels[c] = channels[c] - mean[c];
     cv::merge(channels, float_image);
 
+    // Return preprocessed image
     return float_image;
 }
-
 
 // Apply softmax to logits
 void util::softmax(const float *logits, std::vector<float> &probs, int size)
