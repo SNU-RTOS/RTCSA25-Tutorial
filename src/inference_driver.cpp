@@ -24,10 +24,10 @@ int main(int argc, char *argv[])
     }
     const std::string model_path = argv[2];
     const std::string image_path = argv[3];
-    const std::string label_path = "./labels.json"; // misleading
+    const std::string class_names_path = "./class_names.json";
 
     /* Load model */
-    std::unique_ptr<tflite::FlatBufferModel> model = tflite::FlatBufferModel::BuildFromFile(model_path.c_str()); // Constructor or function
+    std::unique_ptr<tflite::FlatBufferModel> model = tflite::FlatBufferModel::BuildFromFile(model_path.c_str()); // This is a function
     if (!model)
     {
         std::cerr << "Failed to load model" << std::endl;
@@ -113,7 +113,7 @@ int main(int argc, char *argv[])
 
     /* Print Results */
     // Load class label mapping
-    auto label_map = util::load_class_labels(label_path);
+    auto label_map = util::load_class_labels(class_names_path);
 
     // Print Top-5 results
     std::cout << "\n[INFO] Top 5 predictions:" << std::endl;
