@@ -20,7 +20,7 @@ run_main() {
     make -f Makefile_inference_driver -j4
 
     echo "[INFO] Run inference_driver"
-    ./output/inference_driver "$model" "$image"
+    ./output/inference_driver true "$model" "$image"
   )
 }
 
