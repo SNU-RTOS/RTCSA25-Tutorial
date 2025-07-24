@@ -1,6 +1,6 @@
 #include <iostream>
 #include <vector>
-#include "opencv2/opencv.hpp"
+#include <opencv2/opencv.hpp>
 #include "tflite/delegates/xnnpack/xnnpack_delegate.h"
 #include "tflite/delegates/gpu/delegate.h"
 #include "tflite/interpreter_builder.h"
@@ -24,10 +24,10 @@ int main(int argc, char *argv[])
     }
     const std::string model_path = argv[2];
     const std::string image_path = argv[3];
-    const std::string label_path = "./labels.json";
+    const std::string label_path = "./labels.json"; // misleading
 
     /* Load model */
-    std::unique_ptr<tflite::FlatBufferModel> model = tflite::FlatBufferModel::BuildFromFile(model_path.c_str());
+    std::unique_ptr<tflite::FlatBufferModel> model = tflite::FlatBufferModel::BuildFromFile(model_path.c_str()); // Constructor or function
     if (!model)
     {
         std::cerr << "Failed to load model" << std::endl;
@@ -41,7 +41,7 @@ int main(int argc, char *argv[])
     builder(&interpreter);
 
     /* Apply either XNNPACK delegate or GPU delegate */
-    TfLiteDelegate *xnn_delegate = TfLiteXNNPackDelegateCreate(nullptr);
+    TfLiteDelegate* xnn_delegate = TfLiteXNNPackDelegateCreate(nullptr);
     TfLiteDelegate* gpu_delegate = TfLiteGpuDelegateV2Create(nullptr);
     bool delegate_applied = false;
     if(gpu_usage) {
@@ -78,19 +78,9 @@ int main(int argc, char *argv[])
     util::timer_start("E2E Total(Pre+Inf+Post)");
     util::timer_start("Preprocessing");
 
-    // Get input tensor info
-    TfLiteTensor *input_tensor = interpreter->input_tensor(0);
-    int input_height = input_tensor->dims->data[1];
-    int input_width = input_tensor->dims->data[2];
-    int input_channels = input_tensor->dims->data[3];
-
-    std::cout << "\n[INFO] Input shape  : ";
-    util::print_tensor_shape(input_tensor);
-    std::cout << std::endl;
-
     // Preprocess input data
     cv::Mat preprocessed_image = 
-            util::preprocess_image_resnet(origin_image, input_height, input_width);
+            util::preprocess_image_resnet(origin_image, 224, 224); // Shape of input tensor is 224x224
 
     // Copy HWC float32 cv::Mat to TFLite input tensor
     float *input_tensor_value = interpreter->typed_input_tensor<float>(0);
@@ -113,14 +103,8 @@ int main(int argc, char *argv[])
     util::timer_start("Postprocessing");
 
     // Get output tensor
-    TfLiteTensor *output_tensor = interpreter->output_tensor(0);
-    std::cout << "[INFO] Output shape : ";
-    util::print_tensor_shape(output_tensor);
-    std::cout << std::endl;
-
-    float *output_tensor_value = interpreter->typed_output_tensor<float>(0);
-    int num_classes = output_tensor->dims->data[1];
-
+    float *output_tensor_value = interpreter->typed_output_tensor<float>(0); // 1x1000 tensor
+    int num_classes = 1000; // Total 1000 classes
     std::vector<float> probs(num_classes);
     std::memcpy(probs.data(), output_tensor_value, sizeof(float) * num_classes);
 
