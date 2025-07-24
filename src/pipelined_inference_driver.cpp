@@ -1,3 +1,10 @@
+#include <opencv2/opencv.hpp> //opencv
+#include <iostream>
+#include <vector>
+#include <thread>
+#include <mutex>
+#include <pthread.h>
+
 #include "tflite/delegates/xnnpack/xnnpack_delegate.h" //for xnnpack delegate
 #include "tflite/delegates/gpu/delegate.h"             // for gpu delegate
 #include "tflite/model_builder.h"
@@ -7,13 +14,6 @@
 #include "tflite/model.h"
 #include "util.hpp"
 #include "thread_safe_queue.hpp"
-
-#include <opencv2/opencv.hpp> //opencv
-#include <iostream>
-#include <vector>
-#include <thread>
-#include <mutex>
-#include <pthread.h>
 
 // --- Data container used to pass results between pipeline stages ---
 struct IntermediateResult {

@@ -63,8 +63,6 @@ std::unordered_map<int, std::string> util::load_class_labels(const std::string &
     return label_map;
 }
 
-//**** For Section  2.4 ****/
-
 void util::timer_start(const std::string &label)
 {
     util::timer_map[label] = util::TimerResult{util::Clock::now(), util::TimePoint{}, util::global_index++};
@@ -211,8 +209,7 @@ void util::print_top_predictions(const std::vector<float> &probs,
     for (int i = 0; i < top_k; ++i) {
         int idx = indices[i];
         std::cout << "  [Top " << i + 1 << "] Class " << idx;
-
-        // 출력 시 label map이 존재하면 label도 함께 출력
+        
         if (label_map.count(idx)) {
             std::cout << " (" << label_map.at(idx) << ")";
         }

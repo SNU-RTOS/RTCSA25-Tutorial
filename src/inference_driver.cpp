@@ -1,4 +1,3 @@
-// xnn-delegate-main
 #include <iostream>
 #include <fstream>
 #include <vector>
@@ -18,76 +17,68 @@
 
 int main(int argc, char *argv[])
 {
-    std::cout << "====== main_cpu ====" << std::endl;
-
-    if (argc != 3)
+    if (argc != 4)
     {
-        std::cerr << "Usage: " << argv[0] << " <model_path> <image_path>" << std::endl;
+        std::cerr << "Usage: " << argv[0] << " <gpu_usage> <model_path> <image_path>" << std::endl;
         return 1;
     }
 
-    const std::string model_path = argv[1];
-    const std::string image_path = argv[2];
+    bool gpu_usage = false; // If true, GPU delegate is applied
+    const std::string gpu_usage_str = argv[1];
+    if(gpu_usage_str == "true"){
+        gpu_usage = true;
+    }
+    const std::string model_path = argv[2];
+    const std::string image_path = argv[3];
     const std::string label_path = "./labels.json";
 
     /* Load model */
-    util::timer_start("Load Model");
     std::unique_ptr<tflite::FlatBufferModel> model = tflite::FlatBufferModel::BuildFromFile(model_path.c_str());
     if (!model)
     {
         std::cerr << "Failed to load model" << std::endl;
         return 1;
     }
-    util::timer_stop("Load Model");
 
     /* Build interpreter */
-    util::timer_start("Build Interpreter");
     tflite::ops::builtin::BuiltinOpResolver resolver;
     tflite::InterpreterBuilder builder(*model, resolver);
     std::unique_ptr<tflite::Interpreter> interpreter;
     builder(&interpreter);
-    util::timer_stop("Build Interpreter");
 
-    util::print_model_summary(interpreter.get(), false);
-
-    /* Apply XNNPACK delegate */
-    util::timer_start("Apply Delegate");
-    // TfLiteXNNPackDelegateOptions xnnpack_opts = TfLiteXNNPackDelegateOptionsDefault();
-    // TfLiteDelegate *xnn_delegate = TfLiteXNNPackDelegateCreate(&xnnpack_opts);
-    TfLiteGpuDelegateOptionsV2 opts = TfLiteGpuDelegateOptionsV2Default();
-    TfLiteDelegate* gpu_delegate = TfLiteGpuDelegateV2Create(&opts);
+    /* Apply either XNNPACK delegate or GPU delegate */
+    TfLiteDelegate *xnn_delegate = TfLiteXNNPackDelegateCreate(nullptr);
+    TfLiteDelegate* gpu_delegate = TfLiteGpuDelegateV2Create(nullptr);
     bool delegate_applied = false;
-    if (interpreter->ModifyGraphWithDelegate(gpu_delegate) == kTfLiteOk)
-    {
-        delegate_applied = true;
+    if(gpu_usage) {
+        if (interpreter->ModifyGraphWithDelegate(gpu_delegate) == kTfLiteOk)
+        {
+            delegate_applied = true;
+        } else {
+            std::cerr << "Failed to Apply GPU Delegate" << std::endl;
+        }
+    } else {
+        if (interpreter->ModifyGraphWithDelegate(xnn_delegate) == kTfLiteOk)
+        {
+            delegate_applied = true;
+        } else {
+            std::cerr << "Failed to Apply XNNPACK Delegate" << std::endl;
+        }
     }
-    // if (interpreter->ModifyGraphWithDelegate(xnn_delegate) == kTfLiteOk)
-    // {
-    //     delegate_applied = true;
-    // }
-    else
-    {
-        std::cerr << "Failed to Apply XNNPACK Delegate" << std::endl;
-    }
-    util::timer_stop("Apply Delegate");
 
     util::print_model_summary(interpreter.get(), delegate_applied);
 
     /* Allocate Tensor */
-    util::timer_start("Allocate Tensor");
     if (!interpreter || interpreter->AllocateTensors() != kTfLiteOk)
     {
         std::cerr << "Failed to initialize interpreter" << std::endl;
         return 1;
     }
-    util::timer_stop("Allocate Tensor");
 
     /* Load input image */
-    util::timer_start("Load Input Image");
     cv::Mat origin_image = cv::imread(image_path);
     if (origin_image.empty())
         throw std::runtime_error("Failed to load image: " + image_path);
-    util::timer_stop("Load Input Image");
 
     /* Preprocessing */
     util::timer_start("E2E Total(Pre+Inf+Post)");
@@ -108,8 +99,8 @@ int main(int argc, char *argv[])
             util::preprocess_image_resnet(origin_image, input_height, input_width);
 
     // Copy HWC float32 cv::Mat to TFLite input tensor
-    float *input_tensor_buffer = interpreter->typed_input_tensor<float>(0);
-    std::memcpy(input_tensor_buffer, preprocessed_image.ptr<float>(), preprocessed_image.total() * preprocessed_image.elemSize());
+    float *input_tensor_value = interpreter->typed_input_tensor<float>(0);
+    std::memcpy(input_tensor_value, preprocessed_image.ptr<float>(), preprocessed_image.total() * preprocessed_image.elemSize());
 
     util::timer_stop("Preprocessing");
 
@@ -133,12 +124,11 @@ int main(int argc, char *argv[])
     util::print_tensor_shape(output_tensor);
     std::cout << std::endl;
 
-    float *logits = interpreter->typed_output_tensor<float>(0);
+    float *output_tensor_value = interpreter->typed_output_tensor<float>(0);
     int num_classes = output_tensor->dims->data[1];
 
     std::vector<float> probs(num_classes);
-    //util::softmax(logits, probs, num_classes);
-    std::memcpy(probs.data(), logits, sizeof(float) * num_classes);
+    std::memcpy(probs.data(), output_tensor_value, sizeof(float) * num_classes);
 
     util::timer_stop("Postprocessing");
     util::timer_stop("E2E Total(Pre+Inf+Post)");
@@ -158,16 +148,15 @@ int main(int argc, char *argv[])
 
     /* Print Timers */
     util::print_all_timers();
-    std::cout << "========================" << std::endl;
 
-    /* Deallocate delegate */
-    // if (xnn_delegate)
-    // {
-    //     TfLiteXNNPackDelegateDelete(xnn_delegate);
-    // }
+    /* Deallocate delegates */
+    if (xnn_delegate)
+    {
+        TfLiteXNNPackDelegateDelete(xnn_delegate);
+    }
     if (gpu_delegate)
     {
-        TfLiteXNNPackDelegateDelete(gpu_delegate);
+        TfLiteGpuDelegateV2Delete(gpu_delegate);
     }
     return 0;
 }
