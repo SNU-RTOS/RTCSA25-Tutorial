@@ -12,14 +12,10 @@ Focus:
 - Model slicing and pipelined execution
 - LiteRT-based multi-threaded inference engine  
 
-Target: Students working on edge AI systems using lightweight inference engines
-
-
 ## Features
 
-- ✅ CPU inference with XNNPACK optimization
+- ✅ CPU inference with XNNPACK delegate
 - ✅ GPU acceleration support
-- ✅ OpenCV integration for image processing
 - ✅ Automated build and test scripts
 - ✅ Model verification utilities
 
@@ -27,16 +23,12 @@ Target: Students working on edge AI systems using lightweight inference engines
 
 ```
 ├── src/                                # Source code
-│   ├── inference_driver_100.cpp        # CPU inference example that runs the same image 100 times
 │   ├── inference_driver.cpp            # Basic CPU inference example
-│   ├── pipelining.cpp                  # Pipelined parallel execution example
+│   ├── pipelined_inference_driver.cpp  # Pipelined parallel execution example
 │   ├── thread_safe_queue.cpp           # Thread-safe queue implementation for multi-threaded communication 
 │   ├── util.cpp                        # Utility functions
 │   └── util.hpp                        # Utility headers
-├── models/                             # TensorFlow Lite models
-│   ├── sub_model_1.tflite              # First sliced partition of resnet50 model (generated in section 3)
-│   ├── sub_model_1.tflite              # Second sliced partition of resnet50 model (generated in section 3)
-│   └── resnet50.tflite                 # resnet50 model
+├── models/                             # Directory for DNN models
 ├── images/                             # Test images
 ├── scripts/                            # Build and setup scripts
 │   ├── build-litert.sh 
@@ -44,9 +36,8 @@ Target: Students working on edge AI systems using lightweight inference engines
 │   └── install_prerequisites.sh
 ├── model_downloader.py                 # Downloads pretrained resnet50 (.h5 format)
 ├── model_h5_to_tflite.py               # Converts (.h5) format to (.tflite) format
-├── model_slicer.py                     # Slices tflite model
+├── model_slicer.py                     # Model slicer
 ├── Makefile_*                          # Makefiles for different targets
-├── pipeline_100.sh                     # Script that performs pipelined parallel inference on the same image 100 times
 ├── setup.sh                            # Environment setup script
 └── build_and_run.sh                    # Build and run automation script
 
@@ -133,25 +124,16 @@ make -f Makefile_inference_driver -j4
 ./output/inference_driver ./models/resnet50.tflite ./images/_images_1.png
 ```
 
-#### Inference driver 100
-```bash
-# Build inference driver 100
-make -f Makefile_inference_driver_100 -j4
-
-# Run inference driver
-./output/inference_driver_100 ./models/resnet50.tflite ./images/_images_1.png
-```
-
-#### Pipelining
+#### Pipelined Inference Driver
 ```bash
 # Build Pipelining
-make -f Makefile_pipelining -j4
+make -f Makefile_pipelined_inference_driver -j4
 
 # Run inference driver
-./output/pipelining ./models/sub_model_1.tflite ./models/sub_model_2.tflite ./images/_images_1.png
+./output/pipelined_inference_driver ./models/sub_model_1.tflite ./models/sub_model_2.tflite ./images/_images_1.png
 ```
 
-### Run Pipelined Parallel Execution
+### Run Pipeline Parallel Execution
 
 #### Slicing the model
 
@@ -238,7 +220,7 @@ INFO: Created TensorFlow Lite XNNPACK delegate for CPU.
 ## Supported Models
 
 Currently tested with Resnet50
-The project supports standard TensorFlow Lite models (.tflite format).
+The project supports standard LiteRT models (.tflite format).
 
 ## Output
 
@@ -296,7 +278,7 @@ This project is provided as-is for educational and research purposes.
 ## References
 
 - [LiteRT Documentation](https://ai.google.dev/edge/litert)
-- [TensorFlow Lite C++ API](https://www.tensorflow.org/lite/api_docs/cc)
+- [LiteRT C++ API](https://www.tensorflow.org/lite/api_docs/cc)
 - [OpenCV Documentation](https://docs.opencv.org/)
 - [DNNPipe](https://www.sciencedirect.com/science/article/pii/S1383762125001341?via%3Dihub)
 
