@@ -80,7 +80,7 @@ int main(int argc, char *argv[])
 
     // Preprocess input data
     cv::Mat preprocessed_image = 
-            util::preprocess_image_resnet(origin_image, 224, 224); // Shape of input tensor is 224x224
+            util::preprocess_image_resnet(origin_image, 224, 224); // Input tensor shape: [3, 224, 224]
 
     // Copy preprocessed_image to input_tensor
     float *input_tensor_value = interpreter->typed_input_tensor<float>(0);
