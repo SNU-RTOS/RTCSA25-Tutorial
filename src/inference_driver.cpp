@@ -26,7 +26,7 @@ int main(int argc, char *argv[])
     const std::string image_path = argv[3];
     const std::string class_names_path = "./class_names.json";
 
-    /* Load model */
+    /* Load .tflite model */
     std::unique_ptr<tflite::FlatBufferModel> model = tflite::FlatBufferModel::BuildFromFile(model_path.c_str()); // This is a function
     if (!model)
     {
@@ -82,7 +82,7 @@ int main(int argc, char *argv[])
     cv::Mat preprocessed_image = 
             util::preprocess_image_resnet(origin_image, 224, 224); // Shape of input tensor is 224x224
 
-    // Copy HWC float32 cv::Mat to TFLite input tensor
+    // Copy preprocessed_image to input_tensor
     float *input_tensor_value = interpreter->typed_input_tensor<float>(0);
     std::memcpy(input_tensor_value, preprocessed_image.ptr<float>(), preprocessed_image.total() * preprocessed_image.elemSize());
 
