@@ -1,5 +1,6 @@
 #include "util.hpp"
 
+// Print the shape of a given TfLiteTensor
 void util::print_tensor_shape(const TfLiteTensor *tensor)
 {
     printf("[");
@@ -12,6 +13,7 @@ void util::print_tensor_shape(const TfLiteTensor *tensor)
     printf("]");
 }
 
+// Print summary of the loaded TFLite model including tensor and node info
 void util::print_model_summary(tflite::Interpreter *interpreter, bool delegate_applied)
 {
     printf("\n[INFO] Model Summary \n");
@@ -22,7 +24,7 @@ void util::print_model_summary(tflite::Interpreter *interpreter, bool delegate_a
     printf("🧩 Delegate applied    : %s\n", delegate_applied ? "Yes ✅" : "No ❌");
 }
 
-// Get indices of top-k highest values
+// Get indices of top-K elements from a float vector
 std::vector<int> util::get_topK_indices(const std::vector<float> &data, int k)
 {
     std::vector<int> indices(data.size());
@@ -63,11 +65,13 @@ std::unordered_map<int, std::string> util::load_class_labels(const std::string &
     return label_map;
 }
 
+// Start timing for a given label
 void util::timer_start(const std::string &label)
 {
     util::timer_map[label] = util::TimerResult{util::Clock::now(), util::TimePoint{}, util::global_index++};
 }
 
+// Stop timing for a given label
 void util::timer_stop(const std::string &label)
 {
     auto it = util::timer_map.find(label);
@@ -82,6 +86,7 @@ void util::timer_stop(const std::string &label)
     }
 }
 
+// Print all timer results stored in timer_map
 void util::print_all_timers()
 {
     std::vector<std::pair<std::string, util::TimerResult>> ordered(util::timer_map.begin(), util::timer_map.end());
@@ -102,7 +107,7 @@ void util::print_all_timers()
     }
 }
 
-// Preprocess: load, resize, center crop, RGB → float32 + normalize
+// Preprocess input image to match model input size (normalization, resize, etc.)
 cv::Mat util::preprocess_image(cv::Mat &image, int target_height, int target_width)
 {
     int h = image.rows, w = image.cols;
@@ -137,6 +142,7 @@ cv::Mat util::preprocess_image(cv::Mat &image, int target_height, int target_wid
     return float_image;
 }
 
+// Preprocess function specialized for ResNet-style preprocessing
 cv::Mat util::preprocess_image_resnet(cv::Mat &image, int target_height, int target_width)
 {
     // Get original image dimensions
@@ -175,7 +181,7 @@ cv::Mat util::preprocess_image_resnet(cv::Mat &image, int target_height, int tar
     return float_image;
 }
 
-// Apply softmax to logits
+// Compute softmax probabilities from logits
 void util::softmax(const float *logits, std::vector<float> &probs, int size)
 {
     float max_val = *std::max_element(logits, logits + size);
@@ -194,6 +200,7 @@ void util::softmax(const float *logits, std::vector<float> &probs, int size)
     }
 }
 
+// Print top predictions with labels and probabilities
 void util::print_top_predictions(const std::vector<float> &probs,
                                  int num_classes,
                                  int top_k,
@@ -219,12 +226,16 @@ void util::print_top_predictions(const std::vector<float> &probs,
     }
 }
 
+// Print execution plan (operator ordering) of the model
 void util::PrintExecutionPlanOps(std::unique_ptr<tflite::Interpreter>& interpreter) {
+    // Print the total number of nodes in the execution plan
     std::cout << "The model contains "
               << interpreter->execution_plan().size()
               << " nodes in execution plan." << std::endl;
 
+    // Iterate over each node index in the execution plan
     for (int node_index : interpreter->execution_plan()) {
+        // Retrieve the node and its registration (operator info)
         const auto* node_and_reg = interpreter->node_and_registration(node_index);
         if (!node_and_reg) {
             std::cerr << "Failed to get node " << node_index << std::endl;
@@ -236,6 +247,7 @@ void util::PrintExecutionPlanOps(std::unique_ptr<tflite::Interpreter>& interpret
 
         std::cout << "Node " << node_index << ": ";
 
+        // Print the built-in operator name, or custom operator name if applicable
         if (registration.builtin_code != tflite::BuiltinOperator_CUSTOM) {
             std::cout << tflite::EnumNameBuiltinOperator(
                              static_cast<tflite::BuiltinOperator>(registration.builtin_code));
