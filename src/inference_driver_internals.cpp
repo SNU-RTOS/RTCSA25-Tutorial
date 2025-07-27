@@ -1,41 +1,58 @@
-// xnn-delegate-main
+// inference driver internals
 #include <iostream>
-#include <fstream>
 #include <vector>
-#include <algorithm>
-#include <numeric>
-#include <thread>
-#include <chrono>
-
-#include "opencv2/opencv.hpp" //opencv
-
-#include "tflite/delegates/xnnpack/xnnpack_delegate.h" //for xnnpack delegate
-#include "tflite/model_builder.h"
+#include <opencv2/opencv.hpp>
+#include "tflite/delegates/xnnpack/xnnpack_delegate.h"
+#include "tflite/delegates/gpu/delegate.h"
 #include "tflite/interpreter_builder.h"
 #include "tflite/interpreter.h"
 #include "tflite/kernels/register.h"
-#include "tflite/model.h"
+#include "tflite/model_builder.h"
 #include "util.hpp"
-
 #include "tensorflow/compiler/mlir/lite/version.h" // TFLITE_SCHEMA_VERSION is defined inside
-#include <dlfcn.h> // for dynamic loading of libraries, used to find out the name of the delegated function of XNNPACK
+
+/*
+void util::check_proc_maps() {
+    // std::string cmd = "ls -l /proc/self";
+    pid_t pid = getpid();
+    std::stringstream cmd;
+    cmd << "cat /proc/" << pid << "/maps | grep tflite";
+    std::array<char, 256> buffer;
+    std::string result;
+
+    FILE* pipe = popen(cmd.str().c_str(), "r");
+    if (!pipe) {
+        std::cerr << "popen() failed!" << std::endl;
+    }
+
+    // Equivalent to calling "cat /proc/<pid>/maps | grep tflite"
+    while (fgets(buffer.data(), buffer.size(), pipe) != nullptr) {
+        std::cout << buffer.data();  // directly print line
+    }
+
+    pclose(pipe);
+}
+*/
 
 int main(int argc, char *argv[])
 {
-    std::cout << "====== main_cpu ====" << std::endl;
 
     if (argc != 4)
     {
-        std::cerr << "Usage: " << argv[0] << " <model_path> <image_path> <label_json_path>" << std::endl;
+        std::cerr << "Usage: " << argv[0] << " <gpu_usage> <model_path> <image_path>" << std::endl;
         return 1;
     }
 
-    const std::string model_path = argv[1];
-    const std::string image_path = argv[2];
-    const std::string label_path = argv[3];
+    bool gpu_usage = false; // If true, GPU delegate is applied
+    const std::string gpu_usage_str = argv[1];
+    if(gpu_usage_str == "true"){
+        gpu_usage = true;
+    }
+    const std::string model_path = argv[2];
+    const std::string image_path = argv[3];
+    const std::string class_names_path = "./class_names.json";
 
     /* Load model */
-    util::timer_start("Load Model");
     std::unique_ptr<tflite::FlatBufferModel> model =
         tflite::FlatBufferModel::BuildFromFile(model_path.c_str());
     /* The model file is mapped to the user-space memory of the process */
@@ -47,10 +64,8 @@ int main(int argc, char *argv[])
         std::cerr << "Failed to load model" << std::endl;
         return 1;
     }
-    util::timer_stop("Load Model");
 
     /* Build interpreter */
-    util::timer_start("Build Interpreter");
     tflite::ops::builtin::BuiltinOpResolver resolver;
     tflite::InterpreterBuilder builder(*model, resolver);
     std::unique_ptr<tflite::Interpreter> interpreter;
@@ -201,10 +216,7 @@ int main(int argc, char *argv[])
     } // this for loop is implemented as util::print_execution_plan()
     /* ======================================================================================================== */
 
-    util::timer_stop("Build Interpreter");
-
     /* Apply XNNPACK delegate */
-    util::timer_start("Apply Delegate");
     TfLiteXNNPackDelegateOptions xnnpack_opts = TfLiteXNNPackDelegateOptionsDefault();
     TfLiteDelegate *xnn_delegate = TfLiteXNNPackDelegateCreate(&xnnpack_opts);
     bool delegate_applied = true;
@@ -332,12 +344,9 @@ int main(int argc, char *argv[])
     }
     /* ======================================================================================================== */
 
-    util::timer_stop("Apply Delegate");
-
     /* Allocate Tensor */
     // Types of tensors, what happens inside it
     // How the memory space for ArenaRW tensors changes after AllocateTensors() is called
-    util::timer_start("Allocate Tensor");
     if (!interpreter || interpreter->AllocateTensors() != kTfLiteOk)
     {
         std::cerr << "Failed to initialize interpreter" << std::endl;
@@ -352,17 +361,13 @@ int main(int argc, char *argv[])
     // XNNPACK delegate 쓰면 ArenaRW tensor가 하나 밖에 없어서 줄어들 일이 없음
     /* ======================================================================================================== */
 
-    util::timer_stop("Allocate Tensor");
-
 
     util::print_model_summary(interpreter.get(), delegate_applied);
 
     /* Load input image */
-    util::timer_start("Load Input Image");
     cv::Mat origin_image = cv::imread(image_path);
     if (origin_image.empty())
         throw std::runtime_error("Failed to load image: " + image_path);
-    util::timer_stop("Load Input Image");
 
     /* Preprocessing */
     util::timer_start("E2E Total(Pre+Inf+Post)");
