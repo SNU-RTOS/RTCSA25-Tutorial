@@ -22,8 +22,8 @@ LDFLAGS := -Wl,-rpath=\$$ORIGIN/../lib \
 # Include paths
 INCS := -Iinc \
 		-I/usr/include \
-		-I/usr/include/opencv4 
-
+		-I/usr/include/opencv4
+		
 # Library paths
 LIBS := -Llib \
 

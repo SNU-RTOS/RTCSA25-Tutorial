@@ -1,17 +1,31 @@
-# Makefile
+# ==============================
+# Project configuration
+# ==============================
+ROOT_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
+SRC_DIR := $(ROOT_DIR)src
+OBJ_DIR := $(ROOT_DIR)obj
+OUT_DIR := $(ROOT_DIR)output
 
-# Base directories
-ROOT_DIR := $(shell pwd)
-SRC_DIR := src
-OBJ_DIR := obj
-TARGET := inference_driver_internals
-TARGET_PATH := output/$(TARGET)
+# Executables
+TARGETS := inference_driver pipelined_inference_driver
 
-# Compiler settings
+# Source groups
+COMMON_SRCS := inference_driver_internals.cpp util.cpp
+INFERENCE_DRIVER_SRCS := inference_driver.cpp
+PIPELINED_DRIVER_SRCS := pipelined_inference_driver.cpp
+
+# Convert sources to objects
+COMMON_OBJS := $(patsubst %.cpp,$(OBJ_DIR)/%.o,$(COMMON_SRCS))
+INFERENCE_DRIVER_OBJS := $(patsubst %.cpp,$(OBJ_DIR)/%.o,$(INFERENCE_DRIVER_SRCS)) $(COMMON_OBJS)
+PIPELINED_DRIVER_OBJS := $(patsubst %.cpp,$(OBJ_DIR)/%.o,$(PIPELINED_DRIVER_SRCS)) $(COMMON_OBJS)
+
+# Final targets
+INFERENCE_DRIVER_BIN := $(OUT_DIR)/inference_driver_internals
+PIPELINED_DRIVER_BIN := $(OUT_DIR)/pipelined_inference_driver
+
+# Compiler & flags
 CXX := g++
-CXXFLAGS := -std=c++17  
-
-# Linker flags
+CXXFLAGS := -std=c++17 -w
 LDFLAGS := -Wl,-rpath=\$$ORIGIN/../lib \
 	-lpthread \
 	-ltensorflowlite \
@@ -19,41 +33,38 @@ LDFLAGS := -Wl,-rpath=\$$ORIGIN/../lib \
 	-lopencv_core -lopencv_imgproc -lopencv_imgcodecs \
 	-ljsoncpp
 
-# Include paths
-INCS := -Iinc \
-		-I/usr/include \
-		-I/usr/include/opencv4 
+# Include directories
+INCS := -I$(ROOT_DIR)inc \
+	-I/usr/include \
+	-I/usr/include/opencv4 \
+	-I$(ROOT_DIR)/external/litert
 
-# Library paths
-LIBS := -Llib \
+# Library search paths
+LIBS := -Llib
 
-# Source files and object files
-SRCS := $(TARGET).cpp util.cpp
-HDRS := $(shell find $(SRC_DIR) -name '*.hpp')
-OBJS := $(SRCS:%.cpp=%.o)
-OBJECTS = $(patsubst %.o,$(OBJ_DIR)/%.o,$(OBJS))
-DEPS = $(OBJECTS:.o=.d)
-
+# ==============================
+# Targets
+# ==============================
 .PHONY: all clean
 
-# Default target
-all: $(TARGET_PATH)
-	@echo The build completed successfully
+all: $(INFERENCE_DRIVER_BIN) $(PIPELINED_DRIVER_BIN)
+	@echo "Build completed successfully."
 
-# Object file build rule
-$(OBJ_DIR)/%.o : $(SRC_DIR)/%.cpp $(HDRS)
-	@mkdir -p $(@D)
-	$(CXX) $(CXXFLAGS) $(INCS) $(LIBS) -c $< -o $@ -MD $(LDFLAGS)
+# Build inference_driver
+$(INFERENCE_DRIVER_BIN): $(INFERENCE_DRIVER_OBJS)
+	@mkdir -p $(OUT_DIR)
+	$(CXX) $(CXXFLAGS) $(INCS) $(LIBS) $^ -o $@ $(LDFLAGS)
 
-# Executable build rule
-$(TARGET_PATH): $(OBJECTS) $(HDRS)
-	$(CXX) $(CXXFLAGS) $(INCS) $(LIBS) $(OBJECTS) -o $(TARGET_PATH) $(LDFLAGS)
+# Build pipelined_inference_driver
+# $(PIPELINED_DRIVER_BIN): $(PIPELINED_DRIVER_OBJS)
+# 	@mkdir -p $(OUT_DIR)
+# 	$(CXX) $(CXXFLAGS) $(INCS) $(LIBS) $^ -o $@ $(LDFLAGS)
 
-# Clean rule
+# Compile objects
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp
+	@mkdir -p $(OBJ_DIR)
+	$(CXX) $(CXXFLAGS) $(INCS) -c $< -o $@
+
+# Clean build artifacts
 clean:
-	rm -f $(TARGET_PATH)
-	rm -f $(OBJECTS)
-	rm -f $(DEPS)
-
-# Include auto-generated dependency files
--include $(DEPS)
+	rm -rf $(OBJ_DIR) $(OUT_DIR)

@@ -8,6 +8,7 @@
 #include "tflite/kernels/register.h"
 #include "tflite/model_builder.h"
 #include "util.hpp"
+#include "inference_driver_internals.hpp"
 
 /* ================= Variable Naming Convention =================
 * Variables that start with a prefix _litert_ 
@@ -39,6 +40,7 @@ int main(int argc, char *argv[])
         std::cerr << "Failed to load model" << std::endl;
         return 1;
     }
+    PrintLoadModel();
 
     /* Build interpreter */
     tflite::ops::builtin::BuiltinOpResolver _litert_resolver;
@@ -50,6 +52,10 @@ int main(int argc, char *argv[])
         std::cerr << "Failed to Initialize Interpreter" << std::endl;
         return 1;
     }
+
+    // Internals
+    PrintInterpreterInstantiation(_litert_model.get(), _litert_resolver, _litert_interpreter.get());
+    PrintInterpreterAfterInstantiation(_litert_interpreter.get());
 
     /* Apply either XNNPACK delegate or GPU delegate */
     TfLiteDelegate* _litert_xnn_delegate = TfLiteXNNPackDelegateCreate(nullptr);
@@ -71,7 +77,8 @@ int main(int argc, char *argv[])
         }
     }
 
-    util::print_model_summary(_litert_interpreter.get(), delegate_applied);
+    // Internals
+    PrintAfterDelegateApplication(_litert_interpreter.get());
 
     /* Allocate Tensor */
     if (_litert_interpreter->AllocateTensors() != kTfLiteOk)
