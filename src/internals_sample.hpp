@@ -8,7 +8,7 @@
 #include "tflite/model_builder.h"
 #include "tensorflow/compiler/mlir/lite/version.h" // TFLITE_SCHEMA_VERSION is defined inside
 
-namespace debug {
+namespace internals {
     void inspect_model_loading();
 
     void inspect_interpreter_instantiation(const tflite::FlatBufferModel* model,
@@ -22,4 +22,4 @@ namespace debug {
     void inspect_tensors(tflite::Interpreter* interpreter, const std::string& stage);
 
     void inspect_inference(const tflite::Interpreter* interpreter);
-} // namespace debug
+} // namespace internals

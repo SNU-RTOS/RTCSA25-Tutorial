@@ -10,6 +10,9 @@
 #include <cmath>
 #include <chrono>
 #include <string>
+#include <queue>
+#include <mutex>
+#include <condition_variable>
 
 #include <jsoncpp/json/json.h>
 #include <opencv2/opencv.hpp> //opencv
@@ -17,6 +20,64 @@
 #include "tflite/interpreter.h"
 #include "tflite/kernels/register.h"
 #include "tflite/model.h"
+
+/* Data structures for pipelined inference */
+// Data container used to pass results between pipeline stages ---
+struct IntermediateTensor {
+    int index;                            // Index of the input image (used for tracking)
+    std::vector<float> data;             // Flattened data (input/output tensor contents)
+    std::vector<int> tensor_boundaries;  // Marks boundaries between multiple output tensors (if any)
+};
+
+// Thread-safe queue for passing data between threads
+template <typename T>
+class InterStageQueue
+{
+private:
+    std::queue<T> queue;
+    std::mutex mutex;
+    std::condition_variable cond_var;
+    std::atomic<bool> shutdown{false};
+
+public:
+    void push(T item)
+    {
+        std::unique_lock<std::mutex> lock(mutex);
+        queue.push(std::move(item));
+        lock.unlock();
+        cond_var.notify_one();
+    }
+
+    bool pop(T &item)
+    {
+        std::unique_lock<std::mutex> lock(mutex);
+        cond_var.wait(lock, [this]
+                      { return !queue.empty() || shutdown; });
+
+        if (shutdown && queue.empty())
+        {
+            return false;
+        }
+
+        item = std::move(queue.front());
+        queue.pop();
+        return true;
+    }
+
+    void signal_shutdown()
+    {
+        std::unique_lock<std::mutex> lock(mutex);
+        shutdown = true;
+        lock.unlock();
+        cond_var.notify_all();
+    }
+
+    size_t size()
+    {
+        std::unique_lock<std::mutex> lock(mutex);
+        return queue.size();
+    }
+};
 
 namespace util
 {
@@ -76,10 +137,6 @@ namespace util
     void print_top_predictions(const std::vector<float> &probs, int num_classes, 
                                 int top_k, bool show_softmax, 
                                 const std::unordered_map<int, std::string> &label_map);
-
-    // Print execution plan (operator ordering) of the model
-    void PrintExecutionPlanOps(std::unique_ptr<tflite::Interpreter>& interpreter);
 } // namespace util
-
 
 #endif // _UTIL_H_

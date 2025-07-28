@@ -11,7 +11,6 @@
 #include "tflite/kernels/register.h"
 #include "tflite/model_builder.h"
 #include "util.hpp"
-#include "thread_safe_queue.hpp"
 
 /* Pipelined Inference Driver
  * This driver demonstrates a pipelined inference workflow using two submodels.
@@ -26,8 +25,8 @@
 // === Queues for inter-stage communication ===
 // queue0: connects stage0 (preprocessing) to stage1 (first inference)
 // queue1: connects stage1 to stage2 (final inference)
-ThreadSafeQueue<IntermediateTensor> queue0;
-ThreadSafeQueue<IntermediateTensor> queue1;
+InterStageQueue<IntermediateTensor> queue0;
+InterStageQueue<IntermediateTensor> queue1;
 
 void stage0_worker(const std::vector<std::string>& images, int rate_ms) {
     std::cout << "[stage0] Started preprocessing thread\n";
@@ -177,7 +176,7 @@ void stage2_worker(tflite::Interpreter* interpreter) {
                   out_data.begin());
 
         std::cout << "[stage2] Top-5 prediction for image index " << intermediate_tensor.index << ":\n";
-        auto label_map = util::load_class_labels("labels.json");
+        auto label_map = util::load_class_labels("class_names.json"); // TODO: Make it global, there is no need to load this during every inference
         auto top_k_indices = util::get_topK_indices(out_data, 5);
         for (int idx : top_k_indices)
         {
