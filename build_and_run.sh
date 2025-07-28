@@ -17,7 +17,7 @@ run_main() {
 
     echo "================================"
     echo "[INFO] Build inference_driver"
-    make -f Makefile_inference_driver -j4
+    make inference -j4
 
     echo "[INFO] Run inference_driver"
     ./output/inference_driver true "$model" "$image"
