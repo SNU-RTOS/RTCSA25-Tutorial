@@ -11,28 +11,70 @@
 #include "util.hpp"
 #include "tensorflow/compiler/mlir/lite/version.h" // TFLITE_SCHEMA_VERSION is defined inside
 
-/*
-void util::check_proc_maps() {
-    // std::string cmd = "ls -l /proc/self";
-    pid_t pid = getpid();
-    std::stringstream cmd;
-    cmd << "cat /proc/" << pid << "/maps | grep tflite";
-    std::array<char, 256> buffer;
-    std::string result;
-
-    FILE* pipe = popen(cmd.str().c_str(), "r");
-    if (!pipe) {
-        std::cerr << "popen() failed!" << std::endl;
+std::string AllocTypeToStr(TfLiteAllocationType type) {
+    switch (type) {
+        case kTfLiteMmapRo: return "kTfLiteMmapRo";
+        case kTfLiteArenaRw: return "kTfLiteArenaRw";
+        case kTfLiteArenaRwPersistent: return "kTfLiteArenaRwPersistent";
+        case kTfLiteDynamic: return "kTfLiteDynamic";
+        default: return "Unknown";
     }
-
-    // Equivalent to calling "cat /proc/<pid>/maps | grep tflite"
-    while (fgets(buffer.data(), buffer.size(), pipe) != nullptr) {
-        std::cout << buffer.data();  // directly print line
-    }
-
-    pclose(pipe);
 }
-*/
+
+void PrintTensorsInfo(tflite::Interpreter* interpreter, const std::string& stage) {
+    std::cout << "\n==== " << stage << " ====" << std::endl;
+    for (size_t i = 0; i < interpreter->tensors_size(); i++) {
+        TfLiteTensor* tensor = interpreter->tensor(i);
+        if (!tensor) continue;
+
+        void* data_ptr = tensor->data.raw;  // Do NOT call typed_tensor before allocation
+
+        std::cout << "Tensor " << i << ": " 
+                  << (tensor->name ? tensor->name : "unnamed")
+                  << " | AllocType: " << AllocTypeToStr(tensor->allocation_type);
+
+        if (tensor->dims) {
+            std::cout << " | Shape: [";
+            for (int d = 0; d < tensor->dims->size; d++) {
+                std::cout << tensor->dims->data[d] << (d < tensor->dims->size - 1 ? ", " : "");
+            }
+            std::cout << "]";
+        }
+
+        std::cout << " | Bytes: " << tensor->bytes;
+        std::cout << " | Address: " << data_ptr << std::endl;
+    }
+}
+
+void PrintExecutionPlan(const tflite::Interpreter* interpreter) {
+    std::cout << "==== Execution Plan ====" << std::endl;
+    const auto& plan = interpreter->execution_plan();
+    for (size_t i = 0; i < plan.size(); i++) {
+        int node_index = plan[i];
+        auto node_and_reg = interpreter->node_and_registration(node_index);
+        const TfLiteRegistration* reg = &node_and_reg->second;  // FIXED
+
+        std::string op_name = reg->custom_name
+            ? reg->custom_name
+            : tflite::EnumNameBuiltinOperator(static_cast<tflite::BuiltinOperator>(reg->builtin_code));
+        std::cout << i << ": Node " << node_index << " -> " << op_name << std::endl;
+
+        // Heuristic: check if it's a delegate node
+        bool is_delegate = (reg->custom_name && std::string(reg->custom_name).find("Delegate") != std::string::npos);
+        if (is_delegate && node_and_reg->first.user_data) {
+            auto* subgraph = reinterpret_cast<tflite::Subgraph*>(node_and_reg->first.user_data);
+            std::cout << "   (Delegate subgraph with " << subgraph->nodes_size() << " internal nodes)" << std::endl;
+            for (int j = 0; j < subgraph->nodes_size(); j++) {
+                auto* internal_node_and_reg = subgraph->node_and_registration(j);
+                const TfLiteRegistration& internal_reg = internal_node_and_reg->second;
+                std::string sub_op = internal_reg.custom_name
+                    ? internal_reg.custom_name
+                    : tflite::EnumNameBuiltinOperator(static_cast<tflite::BuiltinOperator>(internal_reg.builtin_code));
+                std::cout << "     - Subnode " << j << " -> " << sub_op << std::endl;
+            }
+        }
+    }
+}
 
 int main(int argc, char *argv[])
 {
@@ -56,8 +98,25 @@ int main(int argc, char *argv[])
     std::unique_ptr<tflite::FlatBufferModel> model =
         tflite::FlatBufferModel::BuildFromFile(model_path.c_str());
     /* The model file is mapped to the user-space memory of the process */
-    util::check_proc_maps(); // Equivalent to "cat /proc/<pid>/maps | grep tflite"
-    // std::this_thread::sleep_for(std::chrono::milliseconds(10000));
+    // Equivalent to calling "cat /proc/<pid>/maps | grep tflite"
+    {
+        pid_t pid = getpid();
+        std::stringstream cmd;
+        cmd << "cat /proc/" << pid << "/maps | grep tflite";
+        std::array<char, 256> buffer;
+        std::string result;
+
+        FILE* pipe = popen(cmd.str().c_str(), "r");
+        if (!pipe) {
+            std::cerr << "popen() failed!" << std::endl;
+        }
+
+        while (fgets(buffer.data(), buffer.size(), pipe) != nullptr) {
+            std::cout << buffer.data();
+        }
+
+        pclose(pipe);    
+    }
 
     if (!model)
     {
@@ -78,7 +137,7 @@ int main(int argc, char *argv[])
     // This provides access to the serialized model data
     // (e.g., subgraphs, tensors, operators)
     const tflite::Model* model_root = model->GetModel();
-    std::cout << "Schema version of the model: " << model_root->version() 
+    std::cout << "\nSchema version of the model: " << model_root->version() 
     << "\nSupported schema version: " << TFLITE_SCHEMA_VERSION << std::endl;
 
     // 2. Operator mapping
@@ -171,17 +230,6 @@ int main(int argc, char *argv[])
             }
             std::cout << "\n";
 
-            // Intermediates
-            std::cout << "  Intermediate tensors: ";
-            if (op->intermediates()) {
-                for (int j = 0; j < op->intermediates()->size(); ++j) {
-                    std::cout << op->intermediates()->Get(j) << " ";
-                }
-            } else {
-                std::cout << "(none)";
-            }
-            std::cout << "\n";
-
             // Outputs
             std::cout << "  Output tensors: ";
             if (op->outputs()) {
@@ -198,6 +246,7 @@ int main(int argc, char *argv[])
     // Now let's check the interpreter, if it is correctly instantiated as we saw through the above code
     std::cout << "\nNumber of subgraphs: " << interpreter->subgraphs_size() << std::endl;
     std::cout << "Number of nodes of subgraph 0: " << interpreter->nodes_size() << std::endl; // Internally returns only the value of subgraph 0
+    std::cout << "Number of tensors in subgraph 0: " << interpreter->tensors_size() << std::endl; // Number of tensors
     std::cout << "Execution plan size of subgraph 0: " << interpreter->execution_plan().size() << std::endl; // Internally returns only the value of subgraph 0
     for (int i = 0; i < interpreter->execution_plan().size(); i++) {
         const auto* node_and_reg = interpreter->node_and_registration(i);
@@ -216,13 +265,24 @@ int main(int argc, char *argv[])
     } // this for loop is implemented as util::print_execution_plan()
     /* ======================================================================================================== */
 
-    /* Apply XNNPACK delegate */
-    TfLiteXNNPackDelegateOptions xnnpack_opts = TfLiteXNNPackDelegateOptionsDefault();
-    TfLiteDelegate *xnn_delegate = TfLiteXNNPackDelegateCreate(&xnnpack_opts);
-    bool delegate_applied = true;
-    if (interpreter->ModifyGraphWithDelegate(xnn_delegate) != kTfLiteOk)
-    {
-        delegate_applied = false;
+    /* Apply either XNNPACK delegate or GPU delegate */
+    TfLiteDelegate* _litert_xnn_delegate = TfLiteXNNPackDelegateCreate(nullptr);
+    TfLiteDelegate* _litert_gpu_delegate = TfLiteGpuDelegateV2Create(nullptr);
+    bool delegate_applied = false;
+    if(gpu_usage) {
+        if (interpreter->ModifyGraphWithDelegate(_litert_gpu_delegate) == kTfLiteOk)
+        {
+            delegate_applied = true;
+        } else {
+            std::cerr << "Failed to Apply GPU Delegate" << std::endl;
+        }
+    } else {
+        if (interpreter->ModifyGraphWithDelegate(_litert_xnn_delegate) == kTfLiteOk)
+        {
+            delegate_applied = true;
+        } else {
+            std::cerr << "Failed to Apply XNNPACK Delegate" << std::endl;
+        }
     }
 
     /* ======================================================================================================== */
@@ -240,47 +300,13 @@ int main(int argc, char *argv[])
     }
 
     std::cout << "\nExecution plan size of subgraph 0: " << interpreter->execution_plan().size() << std::endl;
-    util::print_execution_plan(interpreter);
+    // util::print_execution_plan(interpreter);
     // input and output tensors of the delegate node
     {
         // Number of tensors
-        std::cout << "\nNumber of tensors in subgraph 0: " << interpreter->tensors_size() << std::endl;
+        std::cout << "\nNumber of tensors that are actually used: " << interpreter->tensors_size() << std::endl;
 
-        for (int i = 0; i < interpreter->tensors_size(); ++i) {
-            const TfLiteTensor* t = interpreter->tensor(i);
-            if (true/*t->allocation_type != kTfLiteNone*/) {
-                std::cout << "Tensor " << i << " is used by interpreter, alloc: ";
-                switch(t->allocation_type) {
-                    case kTfLiteMemNone: 
-                        std::cout << "kTfLiteMemNone" << std::endl;
-                        break;
-                    case kTfLiteMmapRo: 
-                        std::cout << "kTfLiteMmapRo" << std::endl;
-                        break;
-                    case kTfLiteArenaRw:
-                        std::cout << "kTfLiteArenaRw" << std::endl;
-                        break;
-                    case kTfLiteArenaRwPersistent: 
-                        std::cout << "kTfLiteArenaRwPersistent" << std::endl;
-                        break;
-                    case kTfLiteDynamic: 
-                        std::cout << "kTfLiteDynamic" << std::endl;
-                        break;
-                    case kTfLitePersistentRo: 
-                        std::cout << "kTfLitePersistentRo" << std::endl;
-                        break;
-                    case kTfLiteCustom: 
-                        std::cout << "kTfLiteCustom" << std::endl;
-                        break;
-                    default: 
-                        std::cout << "Unknown" << std::endl;
-                        break;
-                }
-            }
-        }
-
-        const TfLiteNode& node = (interpreter->node_and_registration(50))->first; // We already know the node index
-        const TfLiteRegistration& reg = (interpreter->node_and_registration(50))->second;
+        const TfLiteNode& node = (interpreter->node_and_registration(interpreter->nodes_size()-1))->first; // Get the last node
         
         // Access input tensors
         std::cout << "\nInputs:\n";
@@ -294,36 +320,6 @@ int main(int argc, char *argv[])
                 if (d != tensor->dims->size - 1) std::cout << ", ";
             }
             std::cout << "])\n";
-        }
-        std::cout << std::endl;
-
-        // Access intermediate tensors
-        std::cout << "Intermediates:\n";
-        for (int i = 0; i < node.intermediates->size; ++i) {
-            int tensor_index = node.intermediates->data[i];
-            const TfLiteTensor* tensor = interpreter->tensor(tensor_index);
-            std::cout << tensor_index << " (type: " << TfLiteTypeGetName(tensor->type)
-                    << ", dims: [";
-            for (int d = 0; d < tensor->dims->size; ++d) {
-                std::cout << tensor->dims->data[d];
-                if (d != tensor->dims->size - 1) std::cout << ", ";
-            }
-            std::cout << "]) ";
-        }
-        std::cout << std::endl;
-
-        // Access intermediate tensors
-        std::cout << "Temporaries:\n";
-        for (int i = 0; i < node.temporaries->size; ++i) {
-            int tensor_index = node.temporaries->data[i];
-            const TfLiteTensor* tensor = interpreter->tensor(tensor_index);
-            std::cout << tensor_index << " (type: " << TfLiteTypeGetName(tensor->type)
-                    << ", dims: [";
-            for (int d = 0; d < tensor->dims->size; ++d) {
-                std::cout << tensor->dims->data[d];
-                if (d != tensor->dims->size - 1) std::cout << ", ";
-            }
-            std::cout << "]) ";
         }
         std::cout << std::endl;
 
@@ -347,18 +343,20 @@ int main(int argc, char *argv[])
     /* Allocate Tensor */
     // Types of tensors, what happens inside it
     // How the memory space for ArenaRW tensors changes after AllocateTensors() is called
+
+    PrintTensorsInfo(interpreter.get(), "Before AllocateTensors");
+
     if (!interpreter || interpreter->AllocateTensors() != kTfLiteOk)
     {
         std::cerr << "Failed to initialize interpreter" << std::endl;
         return 1;
     }
+    PrintTensorsInfo(interpreter.get(), "After AllocateTensors");
 
     /* ======================================================================================================== */
     // Code snippet for simulating what happens during AllocateTensors
     // Memory planner is created per subgraph
     // ArenaRW tensors
-    // Sum of memory space compared to the actual memory space that is suitable
-    // XNNPACK delegate 쓰면 ArenaRW tensor가 하나 밖에 없어서 줄어들 일이 없음
     /* ======================================================================================================== */
 
 
@@ -384,7 +382,7 @@ int main(int argc, char *argv[])
     std::cout << std::endl;
 
     // Preprocess input data
-    cv::Mat preprocessed_image = util::preprocess_image(origin_image, input_height, input_width);
+    cv::Mat preprocessed_image = util::preprocess_image_resnet(origin_image, input_height, input_width);
 
     // Copy HWC float32 cv::Mat to TFLite input tensor
     float *input_tensor_buffer = interpreter->typed_input_tensor<float>(0);
@@ -397,18 +395,14 @@ int main(int argc, char *argv[])
     util::timer_start("Inference");
 
     /* ======================================================================================================== */
-    // 여기서는 call stack 보여주는게 좋을 듯
-
+    // Functions being called in the order?
+    // Or GPU internals?
+    // execution plan, node X call function Y ?
+    PrintExecutionPlan(interpreter.get());
     /* ======================================================================================================== */
     if (interpreter->Invoke() != kTfLiteOk)
     {
         std::cerr << "Failed to invoke interpreter" << std::endl;
-        /* Deallocate delegate */
-        if (xnn_delegate)
-        {
-            TfLiteXNNPackDelegateDelete(xnn_delegate);
-        }
-        return 1;
     }
 
     util::timer_stop("Inference");
@@ -433,7 +427,7 @@ int main(int argc, char *argv[])
 
     /* Print Results */
     // Load class label mapping
-    auto label_map = util::load_class_labels(label_path);
+    auto label_map = util::load_class_labels(class_names_path);
 
     // Print Top-5 results
     std::cout << "\n[INFO] Top 5 predictions:" << std::endl;
@@ -447,12 +441,15 @@ int main(int argc, char *argv[])
     /* Print Timers */
     util::print_all_timers();
     std::cout << "========================" << std::endl;
-    std::this_thread::sleep_for(std::chrono::milliseconds(1000)); // Sleep for 1 second to see the output before exit
 
-    /* Deallocate delegate */
-    if (xnn_delegate)
+    /* Deallocate delegates */
+    if (_litert_xnn_delegate)
     {
-        TfLiteXNNPackDelegateDelete(xnn_delegate);
+        TfLiteXNNPackDelegateDelete(_litert_xnn_delegate);
+    }
+    if (_litert_gpu_delegate)
+    {
+        TfLiteGpuDelegateV2Delete(_litert_gpu_delegate);
     }
 
 
