@@ -4,6 +4,14 @@
 #include <mutex>
 #include <condition_variable>
 
+// Data container used to pass results between pipeline stages ---
+struct IntermediateTensor {
+    int index;                            // Index of the input image (used for tracking)
+    std::vector<float> data;             // Flattened data (input/output tensor contents)
+    std::vector<int> tensor_boundaries;  // Marks boundaries between multiple output tensors (if any)
+};
+
+
 // Thread-safe queue for passing data between threads
 template <typename T>
 class ThreadSafeQueue
