@@ -1,6 +1,6 @@
 // inference driver internals
 #include <iostream>
-#include "internals_sample.hpp"
+#include "internals.hpp"
 
 namespace internals {
 /* Load .tflite Model */

@@ -8,9 +8,10 @@ Uses LiteRT (formerly TensorFlow Lite) inference with CPU & GPU delegate support
 Objective: Hands-on optimizing for running TFLite models on RubikPi
 
 Focus:
-- Model conversion and inference
-- Model slicing and pipelined execution
-- LiteRT-based multi-threaded inference engine  
+- Inference driver
+- LiteRT internals
+- Model slicing and conversion
+- Pipelined inference driver
 
 ## Features
 
@@ -23,11 +24,13 @@ Focus:
 
 ```
 ├── src/                                # Source code
-│   ├── inference_driver.cpp            # Basic CPU inference example
-│   ├── pipelined_inference_driver.cpp  # Pipelined parallel execution example
-│   ├── thread_safe_queue.cpp           # Thread-safe queue implementation for multi-threaded communication 
+│   ├── inference_driver.cpp            # General inference driver
+│   ├── internals_sample_code.cpp       # Sample code for showing internals of LiteRT
+│   ├── internals.cpp                   # Functions for inspecting the internals of LiteRT
+│   ├── internals.hpp                   # Header file of inspecting functions
+│   ├── pipelined_inference_driver.cpp  # Inference driver for pipelined inference
 │   ├── util.cpp                        # Utility functions
-│   └── util.hpp                        # Utility headers
+│   └── util.hpp                        # Header file of utility functions
 ├── models/                             # Directory for DNN models
 ├── images/                             # Test images
 ├── scripts/                            # Build and setup scripts
@@ -37,7 +40,7 @@ Focus:
 ├── model_downloader.py                 # Downloads pretrained resnet50 (.h5 format)
 ├── model_h5_to_tflite.py               # Converts (.h5) format to (.tflite) format
 ├── model_slicer.py                     # Model slicer
-├── Makefile_*                          # Makefiles for different targets
+├── Makefile                            # Makefile for generating all outputs
 ├── setup.sh                            # Environment setup script
 └── build_and_run.sh                    # Build and run automation script
 
@@ -65,15 +68,13 @@ This installs:
 - Python development tools
 - Bazel build system
 
-## Setup and Installation
+## Environment Setup
 
-### 1. Environment Setup
 ```bash
 # Run setup script
 ./setup.sh
 ```
 
-### 2. Build LiteRT
 The setup script automatically:
 - Create and configure .env file with your paths
 - Clones the LiteRT repository
@@ -81,36 +82,14 @@ The setup script automatically:
 - Builds the core LiteRT library
 - Builds GPU delegate library
 - Installs necessary python packages for downloading and slicing the model
+- Download resnet50.h5 and convert it into resnet50.tflite under ./models directory
 
 ## Usage
 
 ### Quick Start
 ```bash
-# Build and run inference driver example
+# Build and run inference driver
 ./build_and_run.sh
-```
-
-### Downloading the model
-```bash
-# Downloads pretrained DNN model 'resnet50.h5' and saves the model in './models/'
-python model_downloader.py
-```
-
-### Converting to tflite format
-```bash
-# Converts the original downloaded model format (.h5) to (.tflite) format
-python model_h5_to_tflite.py --h5-path ./models/resnet50.h5 
-```
-
-#### Example
-```bash
-(.ws_pip) rubikpi@RUBIKPi:~/workspace/RTCSA25-Tutorial$ python model_downloader.py 
-WARNING:tensorflow:Compiled the loaded model, but the compiled metrics have yet to be built. `model.compile_metrics` will be empty until you train or evaluate the model.
-Model saved as resnet50.h5
-(.ws_pip) rubikpi@RUBIKPi:~/workspace/RTCSA25-Tutorial$ python model_h5_to_tflite.py --h5-path ./models/resnet50.h5 
-TFLite model saved to: ./models/resnet50.tflite
-(.ws_pip) rubikpi@RUBIKPi:~/workspace/RTCSA25-Tutorial$ ls ./models/
-resnet50.h5  resnet50.tflite
 ```
 
 ### Manual Build and Run
@@ -118,22 +97,33 @@ resnet50.h5  resnet50.tflite
 #### Inference driver
 ```bash
 # Build inference driver
-make -f Makefile_inference_driver -j4
+make inference -j4
+
+# Run inference driver: ./output/inference_driver <gpu_usage> <model path> <image path>
+./output/inference_driver true ./models/resnet50.tflite ./images/_images_1.png
+```
+
+#### Internals Sample Code
+```bash
+# Build inference driver
+make internals -j4
 
 # Run inference driver
-./output/inference_driver ./models/resnet50.tflite ./images/_images_1.png
+# ./output/internals_sample_code <gpu_usage> <model_path> <image_path> <show_internals>
+./output/internals_sample_code true ./models/resnet50.tflite ./images/_images_1.png true
 ```
 
 #### Pipelined Inference Driver
 ```bash
 # Build Pipelining
-make -f Makefile_pipelined_inference_driver -j4
+make pipelined -j4
 
 # Run inference driver
+# ./output/pipelined_inference_driver <submodel_1_path> <submodel_2_path> <image_path>
 ./output/pipelined_inference_driver ./models/sub_model_1.tflite ./models/sub_model_2.tflite ./images/_images_1.png
 ```
 
-### Run Pipeline Parallel Execution
+### Model Slicer
 
 #### Slicing the model
 
@@ -156,71 +146,27 @@ Saved sliced tflite model to: ./models/sub_model_3.tflite
 Saved sliced tflite model to: ./models/sub_model_4.tflite
 ```
 
-#### Executing Pipelinining
-```bash
-./output/pipelining ./models/sub_model_1.tflite ./models/sub_model_2.tflite ./images/_images_1.png 
-```
-
-##### Example
-```bash
-(.ws_pip) rubikpi@RUBIKPi:~/workspace/RTCSA25-Tutorial$ ./output/pipelining ./models/sub_model_1.tflite ./models/sub_model_2.tflite ./images/_images_1.png 
-INFO: Created TensorFlow Lite delegate for GPU.
-INFO: Loaded OpenCL library with dlopen.
-W/Adreno-GSL (99577,99577): <os_lib_map:1488>:   os_lib_map error: libadreno_app_profiles.so: cannot open shared object file: No such file or directory, on 'libadreno_app_profiles.so'
-
-W/Adreno-CB (99577,99577): <cl_app_profiles_initialize:104>: Failed to load the app profiles library libadreno_app_profiles.so!
-INFO: Initialized OpenCL-based API.
-INFO: Created 1 GPU delegate kernels.
-INFO: Created TensorFlow Lite XNNPACK delegate for CPU.
-[stage0] Started preprocessing thread
-[stage1] Started inference thread (model0 / GPU)
-[stage2] Started inference thread (model1 / CPU)
-[stage0] Loading image: ./images/_images_1.png
-[stage0] Preprocessing image: ./images/_images_1.png
-[stage0] Enqueuing preprocessed image index: 0
-[stage0] Finished preprocessing. Signaling shutdown.
-[stage1] Dequeued image index: 0
-[stage1] Invoking model0...
-[stage1] Enqueuing result for image index: 0
-[stage1] Finished inference. Signaling shutdown.
-[stage2] Dequeued intermediate result for index: 0
-[stage2] Invoking model1...
-[stage2] Top-5 prediction for image index 0:
-- Class 765 (rocking_chair): 0.997692
-- Class 877 (turnstile): 0.00175146
-- Class 706 (patio): 0.000219211
-- Class 559 (folding_chair): 5.67999e-05
-- Class 791 (shopping_cart): 2.99848e-05
-[stage2] Finished all inference.
-
-[INFO] Elapsed time summary
-- main:load_models took 0 ms
-- main:build_interpreters took 0 ms
-- main:apply_delegate took 413 ms
-- main:allocate_tensors took 71 ms
-- stage0:load_image took 8 ms
-- stage0:preprocess took 0 ms
-- stage0:flatten took 0 ms
-- stage0:enqueue took 0 ms
-- stage0:total took 9 ms
-- stage1:copy_input took 0 ms
-- stage1:invoke took 22 ms
-- stage1:postprocess took 6 ms
-- stage1:enqueue took 3 ms
-- stage1:total took 32 ms
-- stage2:copy_input took 0 ms
-- stage2:invoke took 105 ms
-- stage2:postprocess took 7 ms
-- stage2:total took 113 ms
-- main:thread_join took 157 ms
-- main:total took 642 ms
-```
-
 
 ## Supported Models
 
-Currently tested with Resnet50
+Tested with Resnet50
+
 The project supports standard LiteRT models (.tflite format).
+
+### Downloading the model
+```bash
+# Downloads pretrained DNN model 'resnet50.h5' and saves the model in './models/'
+# During setup, model will be downloaded
+python model_downloader.py
+```
+
+### Converting to tflite format
+```bash
+# Converts the original downloaded model format (.h5) to (.tflite) format
+# During setup, the conversion will be done
+python model_h5_to_tflite.py --h5-path ./models/resnet50.h5 
+```
+
 
 ## Output
 

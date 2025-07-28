@@ -34,7 +34,7 @@ LIBS := -Llib
 # ==============================
 COMMON_SRCS := util.cpp
 INFERENCE_DRIVER_SRCS := inference_driver.cpp $(COMMON_SRCS)
-INTERNALS_SAMPLE_SRCS := internals_sample_code.cpp internals_sample.cpp $(COMMON_SRCS)
+INTERNALS_SAMPLE_SRCS := internals_sample_code.cpp internals.cpp $(COMMON_SRCS)
 PIPELINED_DRIVER_SRCS := pipelined_inference_driver.cpp $(COMMON_SRCS)
 
 # Map sources to objects
