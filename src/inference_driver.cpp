@@ -40,7 +40,7 @@ int main(int argc, char *argv[])
         std::cerr << "Failed to load model" << std::endl;
         return 1;
     }
-    PrintLoadModel();
+    debug::inspect_model_loading();
 
     /* Build interpreter */
     tflite::ops::builtin::BuiltinOpResolver _litert_resolver;
@@ -54,8 +54,8 @@ int main(int argc, char *argv[])
     }
 
     // Internals
-    PrintInterpreterInstantiation(_litert_model.get(), _litert_resolver, _litert_interpreter.get());
-    PrintInterpreterAfterInstantiation(_litert_interpreter.get());
+    debug::inspect_interpreter_instantiation(_litert_model.get(), _litert_resolver, _litert_interpreter.get());
+    debug::inspect_interpreter(_litert_interpreter.get());
 
     /* Apply either XNNPACK delegate or GPU delegate */
     TfLiteDelegate* _litert_xnn_delegate = TfLiteXNNPackDelegateCreate(nullptr);
@@ -78,14 +78,16 @@ int main(int argc, char *argv[])
     }
 
     // Internals
-    PrintAfterDelegateApplication(_litert_interpreter.get());
+    debug::inspect_interpreter_with_delegate(_litert_interpreter.get());
 
     /* Allocate Tensor */
+    debug::inspect_tensors(_litert_interpreter.get(), "Before Allocate Tensors");
     if (_litert_interpreter->AllocateTensors() != kTfLiteOk)
     {
         std::cerr << "Failed to Allocate Tensors" << std::endl;
         return 1;
     }
+    debug::inspect_tensors(_litert_interpreter.get(), "After Allocate Tensors");
 
     /* Load input image */
     cv::Mat origin_image = cv::imread(image_path);

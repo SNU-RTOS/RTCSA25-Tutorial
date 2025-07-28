@@ -2,9 +2,10 @@
 #include <iostream>
 #include "inference_driver_internals.hpp"
 
+namespace debug {
 /* Load .tflite Model */
 // Equivalent to "cat /proc/<process_id>/maps | grep tflite"
-void PrintLoadModel() {
+void inspect_model_loading() {
     pid_t pid = getpid();
     std::stringstream cmd;
     cmd << "cat /proc/" << pid << "/maps | grep tflite";
@@ -24,7 +25,7 @@ void PrintLoadModel() {
 }
 
 /* Build Interpreter */
-void PrintInterpreterInstantiation(const tflite::FlatBufferModel* model,
+void inspect_interpreter_instantiation(const tflite::FlatBufferModel* model,
                                     const tflite::ops::builtin::BuiltinOpResolver& resolver,
                                     const tflite::Interpreter* interpreter) {
     // 1. Model Validation
@@ -47,7 +48,7 @@ void PrintInterpreterInstantiation(const tflite::FlatBufferModel* model,
         const TfLiteRegistration* reg = resolver.FindOp(builtin_code, op_version); // Checks whether the OpResolver supports the operator
         
         std::cout << "[" << i << "] " << op_name << ", version: " << op_version 
-        << ", supported: " << (reg ? "Y" : "N") << std::endl;
+        << ", supported (Y/N): " << (reg ? "Y" : "N") << std::endl;
     }
 
     // 3. Internal data instantiation
@@ -139,7 +140,7 @@ void PrintInterpreterInstantiation(const tflite::FlatBufferModel* model,
     }
 }
 
-void PrintInterpreterAfterInstantiation(const tflite::Interpreter* interpreter) {
+void inspect_interpreter(const tflite::Interpreter* interpreter) {
     // Now let's check the interpreter, if it is correctly instantiated as we saw through the above code
     std::cout << "\nNumber of subgraphs: " << interpreter->subgraphs_size() << std::endl;
     std::cout << "Number of nodes of subgraph 0: " << interpreter->nodes_size() << std::endl; // Internally returns only the value of subgraph 0
@@ -162,7 +163,8 @@ void PrintInterpreterAfterInstantiation(const tflite::Interpreter* interpreter) 
 }
 
 /* Apply Delegate */
-void PrintAfterDelegateApplication(const tflite::Interpreter* interpreter) {
+std::unordered_set<int> used_tensor_indices; // for tensor allocation during allocate tensors
+void inspect_interpreter_with_delegate(const tflite::Interpreter* interpreter) {
     std::cout << "\nNumber of nodes of subgraph 0: " << interpreter->nodes_size() << std::endl;
     for(int node_index = 0; node_index < interpreter->nodes_size(); node_index++) {
         const auto* node_and_reg = interpreter->node_and_registration(node_index);
@@ -174,13 +176,26 @@ void PrintAfterDelegateApplication(const tflite::Interpreter* interpreter) {
     }
 
     std::cout << "\nExecution plan size of subgraph 0: " << interpreter->execution_plan().size() << std::endl;
+    for (int i = 0; i < interpreter->execution_plan().size(); i++) {
+        const auto* node_and_reg = interpreter->node_and_registration(interpreter->execution_plan()[i]);
+        if (!node_and_reg) {
+            std::cerr << "Failed to get node " << interpreter->execution_plan()[i] << std::endl;
+            continue;
+        }
+
+        const TfLiteRegistration& registration = node_and_reg->second;
+
+        std::cout << "Node " << interpreter->execution_plan()[i] << ": " 
+            << tflite::EnumNameBuiltinOperator(static_cast<tflite::BuiltinOperator>(registration.builtin_code));
+
+        std::cout << std::endl;
+    } 
+
     // input and output tensors of the delegate node
     {
         // Number of tensors
-        std::cout << "\nNumber of tensors that are actually used: " << interpreter->tensors_size() << std::endl;
-
         const TfLiteNode& node = (interpreter->node_and_registration(interpreter->nodes_size()-1))->first; // Get the last node
-        
+        int tensor_count = 0;
         // Access input tensors
         std::cout << "\nInputs:\n";
         for (int i = 0; i < node.inputs->size; ++i) {
@@ -193,6 +208,8 @@ void PrintAfterDelegateApplication(const tflite::Interpreter* interpreter) {
                 if (d != tensor->dims->size - 1) std::cout << ", ";
             }
             std::cout << "])\n";
+            tensor_count++;
+            used_tensor_indices.insert(tensor_index); // Track used tensors for allocation
         }
         std::cout << std::endl;
 
@@ -208,13 +225,16 @@ void PrintAfterDelegateApplication(const tflite::Interpreter* interpreter) {
                 if (d != tensor->dims->size - 1) std::cout << ", ";
             }
             std::cout << "]) ";
+            tensor_count++;
+            used_tensor_indices.insert(tensor_index); // Track used tensors for allocation
         }
         std::cout << std::endl;
+        std::cout << "\nTotal " << tensor_count << " tensors are used." << std::endl;
     }
 }
 
 /* Allocate Tensors */
-void PrintTensorsInfo(tflite::Interpreter* interpreter, const std::string& stage) {
+void inspect_tensors(tflite::Interpreter* interpreter, const std::string& stage) {
 
     auto AllocTypeToStr = [](TfLiteAllocationType type) -> std::string {
         switch (type) {
@@ -224,8 +244,9 @@ void PrintTensorsInfo(tflite::Interpreter* interpreter, const std::string& stage
         }
     };
 
-    std::cout << "\n==== " << stage << " ====" << std::endl;
+    std::cout << "\n==== " << stage << " (used tensors only) ====" << std::endl;
     for (size_t i = 0; i < interpreter->tensors_size(); i++) {
+        if (!used_tensor_indices.count(i)) continue;  // Skip unused tensors
         TfLiteTensor* tensor = interpreter->tensor(i);
         if (!tensor) continue;
 
@@ -249,7 +270,7 @@ void PrintTensorsInfo(tflite::Interpreter* interpreter, const std::string& stage
 }
 
 /* Invoke */
-void PrintExecutionPlan(const tflite::Interpreter* interpreter) {
+void inspect_inference(const tflite::Interpreter* interpreter) {
     std::cout << "==== Execution Plan ====" << std::endl;
     const auto& plan = interpreter->execution_plan();
     for (size_t i = 0; i < plan.size(); i++) {
@@ -278,3 +299,5 @@ void PrintExecutionPlan(const tflite::Interpreter* interpreter) {
         }
     }
 }
+
+} // namespace debug

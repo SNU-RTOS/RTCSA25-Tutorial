@@ -8,16 +8,18 @@
 #include "tflite/model_builder.h"
 #include "tensorflow/compiler/mlir/lite/version.h" // TFLITE_SCHEMA_VERSION is defined inside
 
-void PrintLoadModel();
+namespace debug {
+    void inspect_model_loading();
 
-void PrintInterpreterInstantiation(const tflite::FlatBufferModel* model,
-                                    const tflite::ops::builtin::BuiltinOpResolver& resolver,
-                                    const tflite::Interpreter* interpreter);
+    void inspect_interpreter_instantiation(const tflite::FlatBufferModel* model,
+                                            const tflite::ops::builtin::BuiltinOpResolver& resolver,
+                                            const tflite::Interpreter* interpreter);
 
-void PrintInterpreterAfterInstantiation(const tflite::Interpreter* interpreter);
+    void inspect_interpreter(const tflite::Interpreter* interpreter);
 
-void PrintAfterDelegateApplication(const tflite::Interpreter* interpreter);
+    void inspect_interpreter_with_delegate(const tflite::Interpreter* interpreter);
 
-void PrintTensorsInfo(tflite::Interpreter* interpreter, const std::string& stage);
+    void inspect_tensors(tflite::Interpreter* interpreter, const std::string& stage);
 
-void PrintExecutionPlan(const tflite::Interpreter* interpreter);
+    void inspect_inference(const tflite::Interpreter* interpreter);
+} // namespace debug
