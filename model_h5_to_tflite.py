@@ -8,21 +8,21 @@ absl.logging.set_verbosity(absl.logging.ERROR)  # Suppress TensorFlow warnings
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 def convert_h5_to_tflite(h5_path, output_dir):
-    # 모델 로드
+    # Load .h5 Keras model
     model = tf.keras.models.load_model(h5_path, compile=False)
 
-    # TFLite 변환기 생성
+    # Create converter
     converter = tf.lite.TFLiteConverter.from_keras_model(model)
 
-    # 변환 수행
+    # Convert the model to TFLite format
     tflite_model = converter.convert()
 
-    # 저장 경로 설정
+    # Set output directory and model name
     model_name = os.path.splitext(os.path.basename(h5_path))[0]
     os.makedirs(output_dir, exist_ok=True)
     tflite_path = os.path.join(output_dir, f"{model_name}.tflite")
 
-    # 저장
+    # Save the TFLite model
     with open(tflite_path, 'wb') as f:
         f.write(tflite_model)
 

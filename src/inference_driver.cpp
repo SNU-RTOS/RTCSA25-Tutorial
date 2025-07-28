@@ -16,6 +16,13 @@
 * This includes the model, interpreter, delegates, and tensors
 * ============================================================ */
 
+/* ============ Function Naming Convention of LiteRT ============
+ * LiteRT follows TensorFlow Lite conventions:
+ * - Public C++ class methods: UpperCamelCase (e.g., BuildFromFile)
+ * - C-style APIs and internal helpers: snake_case (e.g., typed_input_tensor)
+ * - FlatBuffer accessors: PascalCase with Get prefix (e.g., GetModel)
+ * ============================================================ */
+
 int main(int argc, char *argv[])
 {
     if (argc < 4)
@@ -37,7 +44,7 @@ int main(int argc, char *argv[])
     if (argc > 4 && std::string(argv[4]) == "true") debug_enabled = true;
 
     /* Load .tflite model */
-    std::unique_ptr<tflite::FlatBufferModel> _litert_model = tflite::FlatBufferModel::BuildFromFile(model_path.c_str()); // This is a function
+    std::unique_ptr<tflite::FlatBufferModel> _litert_model = tflite::FlatBufferModel::BuildFromFile(model_path.c_str());
     if (!_litert_model)
     {
         std::cerr << "Failed to load model" << std::endl;
