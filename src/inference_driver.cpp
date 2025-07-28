@@ -18,9 +18,9 @@
 
 int main(int argc, char *argv[])
 {
-    if (argc != 4)
+    if (argc < 4)
     {
-        std::cerr << "Usage: " << argv[0] << " <gpu_usage> <model_path> <image_path>" << std::endl;
+        std::cerr << "Usage: " << argv[0] << " <gpu_usage> <model_path> <image_path> <debug_enabled>" << std::endl;
         return 1;
     }
 
@@ -33,6 +33,9 @@ int main(int argc, char *argv[])
     const std::string image_path = argv[3];
     const std::string class_names_path = "./class_names.json";
 
+    bool debug_enabled = false; // If true, debug information is printed
+    if (argc > 4 && std::string(argv[4]) == "true") debug_enabled = true;
+
     /* Load .tflite model */
     std::unique_ptr<tflite::FlatBufferModel> _litert_model = tflite::FlatBufferModel::BuildFromFile(model_path.c_str()); // This is a function
     if (!_litert_model)
@@ -40,7 +43,7 @@ int main(int argc, char *argv[])
         std::cerr << "Failed to load model" << std::endl;
         return 1;
     }
-    debug::inspect_model_loading();
+    if(debug_enabled) debug::inspect_model_loading();
 
     /* Build interpreter */
     tflite::ops::builtin::BuiltinOpResolver _litert_resolver;
@@ -54,8 +57,8 @@ int main(int argc, char *argv[])
     }
 
     // Internals
-    debug::inspect_interpreter_instantiation(_litert_model.get(), _litert_resolver, _litert_interpreter.get());
-    debug::inspect_interpreter(_litert_interpreter.get());
+    if(debug_enabled) debug::inspect_interpreter_instantiation(_litert_model.get(), _litert_resolver, _litert_interpreter.get());
+    if(debug_enabled) debug::inspect_interpreter(_litert_interpreter.get());
 
     /* Apply either XNNPACK delegate or GPU delegate */
     TfLiteDelegate* _litert_xnn_delegate = TfLiteXNNPackDelegateCreate(nullptr);
@@ -78,16 +81,16 @@ int main(int argc, char *argv[])
     }
 
     // Internals
-    debug::inspect_interpreter_with_delegate(_litert_interpreter.get());
+    if(debug_enabled) debug::inspect_interpreter_with_delegate(_litert_interpreter.get());
 
     /* Allocate Tensor */
-    debug::inspect_tensors(_litert_interpreter.get(), "Before Allocate Tensors");
+    if(debug_enabled) debug::inspect_tensors(_litert_interpreter.get(), "Before Allocate Tensors");
     if (_litert_interpreter->AllocateTensors() != kTfLiteOk)
     {
         std::cerr << "Failed to Allocate Tensors" << std::endl;
         return 1;
     }
-    debug::inspect_tensors(_litert_interpreter.get(), "After Allocate Tensors");
+    if(debug_enabled) debug::inspect_tensors(_litert_interpreter.get(), "After Allocate Tensors");
 
     /* Load input image */
     cv::Mat origin_image = cv::imread(image_path);
