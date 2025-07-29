@@ -89,10 +89,9 @@ int main(int argc, char *argv[])
     if (origin_image.empty())
         throw std::runtime_error("Failed to load image: " + image_path);
 
-    /* Preprocessing */
     util::timer_start("E2E Total(Pre+Inf+Post)");
     util::timer_start("Preprocessing");
-
+    /* Preprocessing */
     // Preprocess input data
     cv::Mat preprocessed_image = 
             util::preprocess_image_resnet(origin_image, 224, 224);
