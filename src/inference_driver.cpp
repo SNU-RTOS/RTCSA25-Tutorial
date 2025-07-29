@@ -108,7 +108,7 @@ int main(int argc, char *argv[])
     /* Inference */
     if (_litert_interpreter->Invoke() != kTfLiteOk)
     {
-        std::cerr << "Failed to invoke interpreter" << std::endl;
+        std::cerr << "Failed to invoke the interpreter" << std::endl;
         return 1;
     }
     util::timer_stop("Inference");
