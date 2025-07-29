@@ -103,20 +103,18 @@ int main(int argc, char *argv[])
 
     util::timer_stop("Preprocessing");
 
-    /* Inference */
+    
     util::timer_start("Inference");
-
+    /* Inference */
     if (_litert_interpreter->Invoke() != kTfLiteOk)
     {
         std::cerr << "Failed to invoke interpreter" << std::endl;
         return 1;
     }
-
     util::timer_stop("Inference");
 
-    /* PostProcessing */
     util::timer_start("Postprocessing");
-
+    /* PostProcessing */
     // Get output tensor
     float *_litert_output_tensor = _litert_interpreter->typed_output_tensor<float>(0);
     int num_classes = 1000; // Total 1000 classes
