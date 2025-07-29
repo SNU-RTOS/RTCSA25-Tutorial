@@ -38,7 +38,8 @@ int main(int argc, char *argv[])
     const std::string class_names_path = "./class_names.json";
 
     /* Load .tflite model */
-    std::unique_ptr<tflite::FlatBufferModel> _litert_model = tflite::FlatBufferModel::BuildFromFile(model_path.c_str());
+    std::unique_ptr<tflite::FlatBufferModel> _litert_model = 
+        tflite::FlatBufferModel::BuildFromFile(model_path.c_str());
     if (!_litert_model)
     {
         std::cerr << "Failed to load model" << std::endl;
@@ -97,7 +98,8 @@ int main(int argc, char *argv[])
 
     // Copy preprocessed_image to input_tensor
     float* _litert_input_tensor = _litert_interpreter->typed_input_tensor<float>(0);
-    std::memcpy(_litert_input_tensor, preprocessed_image.ptr<float>(), preprocessed_image.total() * preprocessed_image.elemSize());
+    std::memcpy(_litert_input_tensor, preprocessed_image.ptr<float>(), 
+                preprocessed_image.total() * preprocessed_image.elemSize());
 
     util::timer_stop("Preprocessing");
 
