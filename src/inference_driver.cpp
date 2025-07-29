@@ -121,10 +121,6 @@ int main(int argc, char *argv[])
     std::vector<float> probs(num_classes);
     std::memcpy(probs.data(), _litert_output_tensor, sizeof(float) * num_classes);
 
-    util::timer_stop("Postprocessing");
-    util::timer_stop("E2E Total(Pre+Inf+Post)");
-
-    /* Print Results */
     // Load class label mapping
     auto label_map = util::load_class_labels(class_names_path);
 
@@ -137,6 +133,8 @@ int main(int argc, char *argv[])
         std::cout << "- Class " << idx << " (" << label << "): " << probs[idx] << std::endl;
     }
 
+    util::timer_stop("Postprocessing");
+    util::timer_stop("E2E Total(Pre+Inf+Post)");
     /* Print Timers */
     util::print_all_timers();
 
