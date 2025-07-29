@@ -78,6 +78,7 @@ int main(int argc, char *argv[])
         }
     }
 
+    /* Allocate Tensors */
     if (_litert_interpreter->AllocateTensors() != kTfLiteOk)
     {
         std::cerr << "Failed to Allocate Tensors" << std::endl;
