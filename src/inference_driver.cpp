@@ -24,7 +24,8 @@ int main(int argc, char *argv[])
 {
     if (argc < 4)
     {
-        std::cerr << "Usage: " << argv[0] << " <gpu_usage> <model_path> <image_path>" << std::endl;
+        std::cerr << "Usage: " << argv[0] 
+        << " <gpu_usage> <model_path> <image_path>" << std::endl;
         return 1;
     }
 
@@ -94,7 +95,7 @@ int main(int argc, char *argv[])
 
     // Preprocess input data
     cv::Mat preprocessed_image = 
-            util::preprocess_image_resnet(origin_image, 224, 224); // Input tensor shape: [3, 224, 224]
+            util::preprocess_image_resnet(origin_image, 224, 224);
 
     // Copy preprocessed_image to input_tensor
     float* _litert_input_tensor = _litert_interpreter->typed_input_tensor<float>(0);
@@ -118,7 +119,7 @@ int main(int argc, char *argv[])
     util::timer_start("Postprocessing");
 
     // Get output tensor
-    float *_litert_output_tensor = _litert_interpreter->typed_output_tensor<float>(0); // 1x1000 tensor
+    float *_litert_output_tensor = _litert_interpreter->typed_output_tensor<float>(0);
     int num_classes = 1000; // Total 1000 classes
     std::vector<float> probs(num_classes);
     std::memcpy(probs.data(), _litert_output_tensor, sizeof(float) * num_classes);
