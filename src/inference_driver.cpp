@@ -37,7 +37,7 @@ int main(int argc, char *argv[])
     const std::string image_path = argv[3];
     const std::string class_names_path = "./class_names.json";
 
-    /* Load .tflite model */
+    /* Load model */
     std::unique_ptr<tflite::FlatBufferModel> _litert_model = 
         tflite::FlatBufferModel::BuildFromFile(model_path.c_str());
     if (!_litert_model)
