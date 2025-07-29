@@ -22,7 +22,7 @@
 
 int main(int argc, char *argv[])
 {
-    if (argc < 4)
+    if (argc != 4)
     {
         std::cerr << "Usage: " << argv[0] 
         << " <gpu_usage> <model_path> <image_path>" << std::endl;
