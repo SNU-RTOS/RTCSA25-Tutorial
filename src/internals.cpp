@@ -320,21 +320,6 @@ void inspect_inference(const tflite::Interpreter* interpreter) {
             ? reg->custom_name
             : tflite::EnumNameBuiltinOperator(static_cast<tflite::BuiltinOperator>(reg->builtin_code));
         std::cout << i << ": Node " << node_index << " -> " << op_name << std::endl;
-
-        // Heuristic: check if it's a delegate node
-        bool is_delegate = (reg->custom_name && std::string(reg->custom_name).find("Delegate") != std::string::npos);
-        if (is_delegate && node_and_reg->first.user_data) {
-            auto* subgraph = reinterpret_cast<tflite::Subgraph*>(node_and_reg->first.user_data);
-            std::cout << "   (Delegate subgraph with " << subgraph->nodes_size() << " internal nodes)" << std::endl;
-            for (int j = 0; j < subgraph->nodes_size(); j++) {
-                auto* internal_node_and_reg = subgraph->node_and_registration(j);
-                const TfLiteRegistration& internal_reg = internal_node_and_reg->second;
-                std::string sub_op = internal_reg.custom_name
-                    ? internal_reg.custom_name
-                    : tflite::EnumNameBuiltinOperator(static_cast<tflite::BuiltinOperator>(internal_reg.builtin_code));
-                std::cout << "     - Subnode " << j << " -> " << sub_op << std::endl;
-            }
-        }
     }
     std::cout << "Press Enter to continue...";
     std::cin.get();  // Wait for Enter

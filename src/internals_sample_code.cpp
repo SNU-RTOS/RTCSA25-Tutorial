@@ -117,6 +117,7 @@ int main(int argc, char *argv[])
         std::cerr << "Failed to invoke interpreter" << std::endl;
         return 1;
     }
+    internals::inspect_inference(_litert_interpreter.get());
 
     /* PostProcessing */
     // Get output tensor
