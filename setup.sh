@@ -64,6 +64,8 @@ sudo apt install -y libopencv-dev libjsoncpp-dev
 echo "[INFO] Installing Python packages into .ws_pip..."
 pip install tensorflow==2.12.0
 
+######### Download ResNet50 ##########
+cd ..
 # download ResNet50
 python model_downloader.py
 
