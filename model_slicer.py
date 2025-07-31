@@ -7,7 +7,6 @@ Filename: model_slicer.py
 @Contact: thkim@redwood.snu.ac.kr
 
 @Description: Model slicer for RTCSA25 tutorial
-
 """
 import tensorflow as tf
 import numpy as np
