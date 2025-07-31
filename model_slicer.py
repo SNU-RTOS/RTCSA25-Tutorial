@@ -244,7 +244,8 @@ def main():
     # Create a sample dummy input tensor for the first submodel
     sample_input = create_sample_input()
     num_stages = len(partitioning_points) - 1
-    
+
+    # Lists to store intermediate submodels and their corresponding TFLite models
     sub_models = []
     tflite_models = []
 
