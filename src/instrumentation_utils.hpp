@@ -8,7 +8,7 @@
 #include "tflite/model_builder.h"
 #include "tensorflow/compiler/mlir/lite/version.h" // TFLITE_SCHEMA_VERSION is defined inside
 
-namespace internals {
+namespace instrumentation {
     void inspect_model_loading();
 
     void inspect_interpreter_instantiation(const tflite::FlatBufferModel* model,

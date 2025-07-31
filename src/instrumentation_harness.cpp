@@ -8,7 +8,7 @@
 #include "tflite/kernels/register.h"
 #include "tflite/model_builder.h"
 #include "util.hpp"
-#include "internals.hpp"
+#include "instrumentation_utils.hpp"
 
 /* ================= Variable Naming Convention =================
 * Variables that start with a prefix _litert_ 
@@ -48,7 +48,7 @@ int main(int argc, char *argv[])
         std::cerr << "Failed to load model" << std::endl;
         return 1;
     }
-    if(show_internals) internals::inspect_model_loading();
+    if(show_internals) instrumentation::inspect_model_loading();
 
     /* Build interpreter */
     tflite::ops::builtin::BuiltinOpResolver _litert_resolver;
@@ -62,8 +62,8 @@ int main(int argc, char *argv[])
     }
 
     // Internals
-    if(show_internals) internals::inspect_interpreter_instantiation(_litert_model.get(), _litert_resolver, _litert_interpreter.get());
-    if(show_internals) internals::inspect_interpreter(_litert_interpreter.get());
+    if(show_internals) instrumentation::inspect_interpreter_instantiation(_litert_model.get(), _litert_resolver, _litert_interpreter.get());
+    if(show_internals) instrumentation::inspect_interpreter(_litert_interpreter.get());
 
     /* Apply either XNNPACK delegate or GPU delegate */
     TfLiteDelegate* _litert_xnn_delegate = TfLiteXNNPackDelegateCreate(nullptr);
@@ -86,16 +86,16 @@ int main(int argc, char *argv[])
     }
 
     // Internals
-    if(show_internals) internals::inspect_interpreter_with_delegate(_litert_interpreter.get());
+    if(show_internals) instrumentation::inspect_interpreter_with_delegate(_litert_interpreter.get());
 
     /* Allocate Tensor */
-    if(show_internals) internals::inspect_tensors(_litert_interpreter.get(), "Before Allocate Tensors");
+    if(show_internals) instrumentation::inspect_tensors(_litert_interpreter.get(), "Before Allocate Tensors");
     if (_litert_interpreter->AllocateTensors() != kTfLiteOk)
     {
         std::cerr << "Failed to Allocate Tensors" << std::endl;
         return 1;
     }
-    if(show_internals) internals::inspect_tensors(_litert_interpreter.get(), "After Allocate Tensors");
+    if(show_internals) instrumentation::inspect_tensors(_litert_interpreter.get(), "After Allocate Tensors");
 
     /* Load input image */
     cv::Mat origin_image = cv::imread(image_path);
@@ -117,7 +117,7 @@ int main(int argc, char *argv[])
         std::cerr << "Failed to invoke interpreter" << std::endl;
         return 1;
     }
-    internals::inspect_inference(_litert_interpreter.get());
+    instrumentation::inspect_inference(_litert_interpreter.get());
 
     /* PostProcessing */
     // Get output tensor

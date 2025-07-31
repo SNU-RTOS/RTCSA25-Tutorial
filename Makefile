@@ -7,7 +7,7 @@ OBJ_DIR := obj
 OUT_DIR := output
 
 # Executables
-TARGETS := inference_driver internals_sample_code pipelined_inference_driver
+TARGETS := inference_driver instrumentation_harness pipelined_inference_driver
 
 # Compiler & flags
 CXX := g++
@@ -34,7 +34,7 @@ LIBS := -Llib
 # ==============================
 COMMON_SRCS := util.cpp
 INFERENCE_DRIVER_SRCS := inference_driver.cpp $(COMMON_SRCS)
-INTERNALS_SAMPLE_SRCS := internals_sample_code.cpp internals.cpp $(COMMON_SRCS)
+INTERNALS_SAMPLE_SRCS := instrumentation_harness.cpp instrumentation_utils.cpp $(COMMON_SRCS)
 PIPELINED_DRIVER_SRCS := pipelined_inference_driver.cpp $(COMMON_SRCS)
 
 # Map sources to objects
@@ -44,7 +44,7 @@ PIPELINED_DRIVER_OBJS := $(patsubst %.cpp,$(OBJ_DIR)/%.o,$(PIPELINED_DRIVER_SRCS
 
 # Final binaries
 INFERENCE_DRIVER_BIN := $(OUT_DIR)/inference_driver
-INTERNALS_SAMPLE_BIN := $(OUT_DIR)/internals_sample_code
+INTERNALS_SAMPLE_BIN := $(OUT_DIR)/instrumentation_harness
 PIPELINED_DRIVER_BIN := $(OUT_DIR)/pipelined_inference_driver
 
 # ==============================

@@ -1,8 +1,8 @@
 // inference driver internals
 #include <iostream>
-#include "internals.hpp"
+#include "instrumentation_utils.hpp"
 
-namespace internals {
+namespace instrumentation {
 /* Load .tflite Model */
 // Equivalent to "cat /proc/<process_id>/maps | grep tflite"
 void inspect_model_loading() {

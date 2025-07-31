@@ -40,7 +40,7 @@ echo "[INFO] Working in: $(pwd)"
 ## Clone LiteRT
 echo "[INFO] Installing LiteRT"
 if [ ! -d "${LITERT_PATH}" ]; then
-    git clone https://github.com/google-ai-edge/litert.git
+    git clone https://github.com/Seunmul/LiteRT.git "${LITERT_PATH}"
     cd "${LITERT_PATH}"
     ./configure
 else
