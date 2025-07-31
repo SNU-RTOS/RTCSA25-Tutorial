@@ -133,7 +133,7 @@ void stage1_worker(tflite::Interpreter* interpreter) {
 
 
 
-void stage2_worker(tflite::Interpreter* interpreter) {
+void stage2_worker(tflite::Interpreter* interpreter, std::unordered_map<int, std::string> label_map) {
     std::cout << "[stage2] Started inference thread (submodel1)\n";
     IntermediateTensor intermediate_tensor;
 
@@ -176,7 +176,6 @@ void stage2_worker(tflite::Interpreter* interpreter) {
                   out_data.begin());
 
         std::cout << "[stage2] Top-5 prediction for image index " << intermediate_tensor.index << ":\n";
-        auto label_map = util::load_class_labels("class_names.json"); // TODO: Make it global, there is no need to load this during every inference
         auto top_k_indices = util::get_topK_indices(out_data, 5);
         for (int idx : top_k_indices)
         {
@@ -191,7 +190,6 @@ void stage2_worker(tflite::Interpreter* interpreter) {
 
     std::cout << "[stage2] Finished all inference.\n";
 }
-
 
 int main(int argc, char* argv[]) {
     const char* submodel0_path = argv[1];  // Path to first model (used in stage1)
@@ -225,10 +223,12 @@ int main(int argc, char* argv[]) {
     stage1_interpreter->AllocateTensors(); // Inside this function, XNNPACK delegate is automatically applied
     stage2_interpreter->AllocateTensors();
 
+    auto label_map = util::load_class_labels("class_names.json"); // An unordered_map of class indices to labels for postprocessing
+
     util::timer_start("Inference");
     std::thread t0(stage0_worker, std::ref(images), rate_ms);
     std::thread t1(stage1_worker, stage1_interpreter.get());
-    std::thread t2(stage2_worker, stage2_interpreter.get());
+    std::thread t2(stage2_worker, stage2_interpreter.get(), label_map);
 
     t0.join();
     t1.join();
