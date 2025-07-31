@@ -213,8 +213,8 @@ int main(int argc, char* argv[]) {
     tflite::InterpreterBuilder(*submodel0, resolver)(&stage1_interpreter);
     tflite::InterpreterBuilder(*submodel1, resolver)(&stage2_interpreter);
 
-    stage1_interpreter->SetNumThreads(1);
-    stage2_interpreter->SetNumThreads(4);
+    stage1_interpreter->SetNumThreads(4);
+    stage2_interpreter->SetNumThreads(1);
 
     TfLiteGpuDelegateOptionsV2 opts = TfLiteGpuDelegateOptionsV2Default();
     TfLiteDelegate* gpu_delegate = TfLiteGpuDelegateV2Create(&opts);
