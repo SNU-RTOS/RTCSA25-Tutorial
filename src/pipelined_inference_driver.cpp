@@ -227,6 +227,7 @@ int main(int argc, char* argv[]) {
 
     auto label_map = util::load_class_labels("class_names.json"); // An unordered_map of class indices to labels for postprocessing
 
+    util::timer_start("Pipeliend Inference Total");
     std::thread t0(stage0_worker, std::ref(images), rate_ms);
     std::thread t1(stage1_worker, stage1_interpreter.get());
     std::thread t2(stage2_worker, stage2_interpreter.get(), label_map);
@@ -234,6 +235,7 @@ int main(int argc, char* argv[]) {
     t0.join();
     t1.join();
     t2.join();
+    util::timer_stop("Pipeliend Inference Total");
 
     if (gpu_delegate) TfLiteGpuDelegateV2Delete(gpu_delegate);
 
