@@ -23,8 +23,8 @@
     After the inference, postprocessing of the output is done on the CPU. */
 
 // === Queues for inter-stage communication ===
-// queue0: connects stage0 (preprocessing) to stage1
-// queue1: connects stage1 to stage2
+// queue0: from stage0 to stage1
+// queue1: from stage1 to stage2
 InterStageQueue<IntermediateTensor> queue0;
 InterStageQueue<IntermediateTensor> queue1;
 
@@ -34,20 +34,15 @@ void stage0_worker(const std::vector<std::string>& images, int rate_ms) {
 
     for (size_t i = 0; i < images.size(); ++i) {
         std::string label = "Image " + std::to_string(i) + " Stage 0";
-        util::timer_start(label);
+        if(i == 5) util::timer_start(label);
 
-        // std::cout << "[stage0] Loading image: " << images[i] << std::endl;
-        // util::timer_start("stage0:load_image");
         cv::Mat origin_image = cv::imread(images[i]);
-        // util::timer_stop("stage0:load_image");
 
         if (origin_image.empty()) {
             std::cerr << "[stage0] Failed to load image: " << images[i] << "\n";
             util::timer_stop(label);
             continue;
         }
-
-        // std::cout << "[stage0] Preprocessing image: " << images[i] << std::endl;
         
         cv::Mat preprocessed_image = util::preprocess_image_resnet(origin_image, 224, 224);
         if (preprocessed_image.empty()) {
@@ -62,13 +57,9 @@ void stage0_worker(const std::vector<std::string>& images, int rate_ms) {
         IntermediateTensor intermediate_tensor;
         intermediate_tensor.index = i;
         intermediate_tensor.data = std::move(input_vector);
-
-        // std::cout << "[stage0] Enqueuing preprocessed image index: " << intermediate_tensor.index << std::endl;
-        // util::timer_start("stage0:enqueue");
         queue0.push(intermediate_tensor);
-        // util::timer_stop("stage0:enqueue");
 
-        util::timer_stop(label);
+        if(i == 5) util::timer_stop(label);
 
         next_wakeup_time += std::chrono::milliseconds(rate_ms);
         std::this_thread::sleep_until(next_wakeup_time);
@@ -84,22 +75,14 @@ void stage1_worker(tflite::Interpreter* interpreter) {
     IntermediateTensor intermediate_tensor;
     uint count = 0;
     while (queue0.pop(intermediate_tensor)) {
-        std::string label = "Image " + std::to_string(count++) + " Stage 1";
-        util::timer_start(label);
+        std::string label = "Image " + std::to_string(count) + " Stage 1";
+        if(count == 5) util::timer_start(label);
 
-        // std::cout << "[stage1] Dequeued image index: " << intermediate_tensor.index << std::endl;
-
-        // util::timer_start("stage1:copy_input");
         float* input = interpreter->typed_input_tensor<float>(0);
         std::copy(intermediate_tensor.data.begin(), intermediate_tensor.data.end(), input);
-        // util::timer_stop("stage1:copy_input");
 
-        // std::cout << "[stage1] Invoking model0...\n";
-        // util::timer_start("stage1:invoke");
         interpreter->Invoke();
-        // util::timer_stop("stage1:invoke");
 
-        // util::timer_start("stage1:postprocess");
         std::vector<float> flat;
         std::vector<int> bounds{0};
 
@@ -118,14 +101,11 @@ void stage1_worker(tflite::Interpreter* interpreter) {
 
         intermediate_tensor.data = std::move(flat);
         intermediate_tensor.tensor_boundaries = std::move(bounds);
-        // util::timer_stop("stage1:postprocess");
-
-        // util::timer_start("stage1:enqueue");
-        // std::cout << "[stage1] Enqueuing result for image index: " << intermediate_tensor.index << std::endl;
+    
         queue1.push(intermediate_tensor);
-        // util::timer_stop("stage1:enqueue");
 
-        util::timer_stop(label);
+        if(count == 5) util::timer_stop(label);
+        ++count;
     }
 
     std::cout << "[stage1] Finished inference. Signaling shutdown.\n";
@@ -139,12 +119,9 @@ void stage2_worker(tflite::Interpreter* interpreter, std::unordered_map<int, std
     IntermediateTensor intermediate_tensor;
     uint count = 0; 
     while (queue1.pop(intermediate_tensor)) {
-        std::string label = "Image " + std::to_string(count++) + " Stage 2";
-        util::timer_start(label);
+        std::string label = "Image " + std::to_string(count) + " Stage 2";
+        if(count == 5) util::timer_start(label);
 
-        // std::cout << "[stage2] Dequeued intermediate result for index: " << intermediate_tensor.index << std::endl;
-
-        // util::timer_start("stage2:copy_input");
         size_t num_inputs = interpreter->inputs().size();
         size_t tensors_to_copy = std::min(intermediate_tensor.tensor_boundaries.size() - 1, num_inputs);
 
@@ -158,15 +135,10 @@ void stage2_worker(tflite::Interpreter* interpreter, std::unordered_map<int, std
                     intermediate_tensor.data.begin() + end_idx,
                     input_data);
         }
-        util::timer_stop("stage2:copy_in/put");
 
-
-        // std::cout << "[stage2] Invoking model1...\n";
-        // util::timer_start("stage2:invoke");
         interpreter->Invoke();
-        // util::timer_stop("stage2:invoke");
 
-        // util::timer_start("stage2:postprocess");
+        // !TODO: The postprocessing part is different from the one of the inference driver
         TfLiteTensor* out = interpreter->tensor(interpreter->outputs()[0]);
         int numel = 1;
         for (int d = 0; d < out->dims->size; ++d)
@@ -177,46 +149,42 @@ void stage2_worker(tflite::Interpreter* interpreter, std::unordered_map<int, std
                   interpreter->typed_output_tensor<float>(0) + numel,
                   out_data.begin());
 
-        std::cout << "[stage2] Top-5 prediction for image index " << intermediate_tensor.index << ":\n";
-        auto top_k_indices = util::get_topK_indices(out_data, 5);
-        for (int idx : top_k_indices)
-        {
-            std::string label = label_map.count(idx) ? label_map[idx] : "unknown";
-            std::cout << "- Class " << idx << " (" << label << "): " << out_data[idx] << std::endl;
+        // !TODO: Is printing out the value everytime necessary?
+        auto top_k_indices = util::get_topK_indices(out_data, 3);
+        if(count < 5) {
+            std::cout << "\n[stage2] Top-3 prediction for image index " << intermediate_tensor.index << ":\n";
+            for (int idx : top_k_indices)
+            {
+                std::string label = label_map.count(idx) ? label_map[idx] : "unknown";
+                std::cout << "- Class " << idx << " (" << label << "): " << out_data[idx] << std::endl;
+            }
         }
 
-        // util::timer_stop("stage2:postprocess");
-
-        util::timer_stop(label);
+        if(count == 5) util::timer_stop(label);
+        ++count;
     }
 
     std::cout << "[stage2] Finished all inference.\n";
 }
 
 void inference_driver_worker(const std::vector<std::string>& images, tflite::Interpreter* interpreter, std::unordered_map<int, std::string> label_map) {
-    // auto next_wakeup_time = std::chrono::high_resolution_clock::now();
 
     for (size_t i = 0; i < images.size(); ++i) {
         std::string label = "Image " + std::to_string(i) + " Inference Driver";
-        util::timer_start(label);
+        if(i == 5) util::timer_start(label);
 
-        // std::cout << "[stage0] Loading image: " << images[i] << std::endl;
-        // util::timer_start("stage0:load_image");
         cv::Mat origin_image = cv::imread(images[i]);
-        // util::timer_stop("stage0:load_image");
 
         if (origin_image.empty()) {
             std::cerr << "[stage0] Failed to load image: " << images[i] << "\n";
-            util::timer_stop(label);
+            if(i==5) util::timer_stop(label);
             continue;
         }
-
-        // std::cout << "[stage0] Preprocessing image: " << images[i] << std::endl;
         
         cv::Mat preprocessed_image = util::preprocess_image_resnet(origin_image, 224, 224);
         if (preprocessed_image.empty()) {
             std::cerr << "[stage0] Preprocessing failed: " << images[i] << "\n";
-            util::timer_stop(label);
+            if(i==5) util::timer_stop(label);
             continue;
         }
 
@@ -233,17 +201,17 @@ void inference_driver_worker(const std::vector<std::string>& images, tflite::Int
         std::vector<float> probs(num_classes);
         std::memcpy(probs.data(), output_tensor, sizeof(float) * num_classes);
 
-        auto top_k_indices = util::get_topK_indices(probs, 5);
-        for (int idx : top_k_indices)
-        {
-            std::string label = label_map.count(idx) ? label_map[idx] : "unknown";
-            std::cout << "- Class " << idx << " (" << label << "): " << probs[idx] << std::endl;
+        auto top_k_indices = util::get_topK_indices(probs, 3);
+        if(i < 5) {
+            std::cout << "\n[Inference Driver] Top-3 prediction for image index " << i << ":\n";
+            for (int idx : top_k_indices)
+            {
+                std::string label = label_map.count(idx) ? label_map[idx] : "unknown";
+                std::cout << "- Class " << idx << " (" << label << "): " << probs[idx] << std::endl;
+            }
         }
 
-        util::timer_stop(label);
-
-        // next_wakeup_time += std::chrono::milliseconds(rate_ms);
-        // std::this_thread::sleep_until(next_wakeup_time);
+        if(i == 5) util::timer_stop(label);
     }
 }
 
@@ -272,9 +240,6 @@ int main(int argc, char* argv[]) {
     tflite::InterpreterBuilder(*submodel1, resolver)(&stage2_interpreter);
     tflite::InterpreterBuilder(*original_model, resolver)(&original_internpreter);
 
-    // stage1_interpreter->SetNumThreads(4);
-    // stage2_interpreter->SetNumThreads(1);
-
     TfLiteGpuDelegateOptionsV2 opts = TfLiteGpuDelegateOptionsV2Default();
     TfLiteDelegate* gpu_delegate = TfLiteGpuDelegateV2Create(&opts);
     stage2_interpreter->ModifyGraphWithDelegate(gpu_delegate);
@@ -288,6 +253,13 @@ int main(int argc, char* argv[]) {
 
     auto label_map = util::load_class_labels("class_names.json"); // An unordered_map of class indices to labels for postprocessing
 
+    // Running inference driver
+    util::timer_start("Normal Inference Total");
+    std::thread t3(inference_driver_worker, std::ref(images), original_internpreter.get(), label_map);
+    t3.join();
+    util::timer_stop("Normal Inference Total");
+
+    // Running pipelined inference driver
     util::timer_start("Pipeliend Inference Total");
     std::thread t0(stage0_worker, std::ref(images), rate_ms);
     std::thread t1(stage1_worker, stage1_interpreter.get());
@@ -298,10 +270,8 @@ int main(int argc, char* argv[]) {
     t2.join();
     util::timer_stop("Pipeliend Inference Total");
 
-    util::timer_start("Normal Inference Total");
-    std::thread t3(inference_driver_worker, std::ref(images), original_internpreter.get(), label_map);
-    t3.join();
-    util::timer_stop("Normal Inference Total");
+    // !TODO: Add a utility function that compares the ratio of the throughputs
+    // and the ratio between the longest stage time and E2E latency of the inference driver
 
     if (gpu_delegate) TfLiteGpuDelegateV2Delete(gpu_delegate);
     if (gpu_delegate_for_original_model) TfLiteGpuDelegateV2Delete(gpu_delegate_for_original_model);

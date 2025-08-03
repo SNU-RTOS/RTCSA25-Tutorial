@@ -16,7 +16,7 @@ base_images=(
     "$script_dir/../images/_images_4.png"
     "$script_dir/../images/_images_5.png"
 )
-total_inputs=20
+total_inputs=100
 # ---------------------------------
 
 # Sanity check for files
