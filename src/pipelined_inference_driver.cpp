@@ -31,9 +31,9 @@ InterStageQueue<IntermediateTensor> queue1;
 void stage0_worker(const std::vector<std::string>& images, int rate_ms) {
     std::cout << "[stage0] Started preprocessing thread\n";
     auto next_wakeup_time = std::chrono::high_resolution_clock::now();
+    std::string label = "Stage 0";
 
     for (size_t i = 0; i < images.size(); ++i) {
-        std::string label = "Image " + std::to_string(i) + " Stage 0";
         if(i == 5) util::timer_start(label);
 
         cv::Mat origin_image = cv::imread(images[i]);
@@ -74,8 +74,8 @@ void stage1_worker(tflite::Interpreter* interpreter) {
     std::cout << "[stage1] Started inference thread (submodel0)\n";
     IntermediateTensor intermediate_tensor;
     uint count = 0;
+    std::string label = "Stage 1";
     while (queue0.pop(intermediate_tensor)) {
-        std::string label = "Image " + std::to_string(count) + " Stage 1";
         if(count == 5) util::timer_start(label);
 
         float* input = interpreter->typed_input_tensor<float>(0);
@@ -118,8 +118,9 @@ void stage2_worker(tflite::Interpreter* interpreter, std::unordered_map<int, std
     std::cout << "[stage2] Started inference thread (submodel1)\n";
     IntermediateTensor intermediate_tensor;
     uint count = 0; 
+    std::string label = "Stage 2";
+    
     while (queue1.pop(intermediate_tensor)) {
-        std::string label = "Image " + std::to_string(count) + " Stage 2";
         if(count == 5) util::timer_start(label);
 
         size_t num_inputs = interpreter->inputs().size();
@@ -168,23 +169,23 @@ void stage2_worker(tflite::Interpreter* interpreter, std::unordered_map<int, std
 }
 
 void inference_driver_worker(const std::vector<std::string>& images, tflite::Interpreter* interpreter, std::unordered_map<int, std::string> label_map) {
+    std::string label = "Inference Driver";
 
     for (size_t i = 0; i < images.size(); ++i) {
-        std::string label = "Image " + std::to_string(i) + " Inference Driver";
-        if(i == 5) util::timer_start(label);
+        if(i == 6) util::timer_start(label);
 
         cv::Mat origin_image = cv::imread(images[i]);
 
         if (origin_image.empty()) {
             std::cerr << "[stage0] Failed to load image: " << images[i] << "\n";
-            if(i==5) util::timer_stop(label);
+            if(i == 6) util::timer_stop(label);
             continue;
         }
         
         cv::Mat preprocessed_image = util::preprocess_image_resnet(origin_image, 224, 224);
         if (preprocessed_image.empty()) {
             std::cerr << "[stage0] Preprocessing failed: " << images[i] << "\n";
-            if(i==5) util::timer_stop(label);
+            if(i == 6) util::timer_stop(label);
             continue;
         }
 
@@ -211,7 +212,7 @@ void inference_driver_worker(const std::vector<std::string>& images, tflite::Int
             }
         }
 
-        if(i == 5) util::timer_stop(label);
+        if(i == 6) util::timer_stop(label);
     }
 }
 
@@ -260,7 +261,7 @@ int main(int argc, char* argv[]) {
     util::timer_stop("Normal Inference Total");
 
     // Running pipelined inference driver
-    util::timer_start("Pipeliend Inference Total");
+    util::timer_start("Pipelined Inference Total");
     std::thread t0(stage0_worker, std::ref(images), rate_ms);
     std::thread t1(stage1_worker, stage1_interpreter.get());
     std::thread t2(stage2_worker, stage2_interpreter.get(), label_map);
@@ -268,11 +269,16 @@ int main(int argc, char* argv[]) {
     t0.join();
     t1.join();
     t2.join();
-    util::timer_stop("Pipeliend Inference Total");
+    util::timer_stop("Pipelined Inference Total");
 
-    // !TODO: Add a utility function that compares the ratio of the throughputs
-    // and the ratio between the longest stage time and E2E latency of the inference driver
+    // Compare throughput between inference driver and pipelined inference driver
+    util::compare_throughput("Normal Inference Total", "Pipelined Inference Total", images.size());
+    
+    // Compare the ratio of the longest stage in pipelined inference to the E2E latency of a normal inference
+    std::vector<std::string> stage_labels = {"Stage 0", "Stage 1", "Stage 2"};
+    util::compare_latency(stage_labels, "Inference Driver");
 
+    // Deallocate delegates
     if (gpu_delegate) TfLiteGpuDelegateV2Delete(gpu_delegate);
     if (gpu_delegate_for_original_model) TfLiteGpuDelegateV2Delete(gpu_delegate_for_original_model);
 

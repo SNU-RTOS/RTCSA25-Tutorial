@@ -109,6 +109,13 @@ namespace util
     // Print all timer results stored in timer_map
     void print_all_timers();
 
+    //  Compare throughput between inference driver and pipelined inference driver
+    void compare_throughput(const std::string &label1, const std::string &label2, int num_images);
+
+    // Compare the ratio of the longest stage in pipelined inference to the E2E latency of a normal inference
+    void compare_latency(const std::vector<std::string> &stage_labels,
+                            const std::string &e2e_label);
+
     //*==========================================*/
 
     // Load class labels from a JSON file

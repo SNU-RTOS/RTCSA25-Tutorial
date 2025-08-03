@@ -107,6 +107,87 @@ void util::print_all_timers()
     }
 }
 
+//  Compare throughput between inference driver and pipelined inference driver
+void util::compare_throughput(const std::string &label1, const std::string &label2, int num_images)
+{
+    auto get_latency = [&](const std::string &label) -> double {
+            auto it = util::timer_map.find(label);
+            if (it == util::timer_map.end() || it->second.end == util::TimePoint{})
+                return -1;
+            return static_cast<double>(
+                std::chrono::duration_cast<std::chrono::milliseconds>(it->second.end - it->second.start).count());
+        };
+
+        double latency1 = get_latency(label1);
+        double latency2 = get_latency(label2);
+
+        if (latency1 <= 0 || latency2 <= 0)
+        {
+            std::cerr << "[ERROR] Could not retrieve valid latencies.\n";
+            return;
+        }
+
+        double throughput1 = num_images / (latency1 / 1000.0);
+        double throughput2 = num_images / (latency2 / 1000.0);
+        double improvement = ((throughput2 - throughput1) / throughput1) * 100.0;
+        double ratio = throughput2 / throughput1;
+
+        std::cout << "\n[INFO] Throughput comparison\n";
+        std::cout << "- " << label1 << ": " << throughput1 << " images/sec (" << latency1 << " ms)\n";
+        std::cout << "- " << label2 << ": " << throughput2 << " images/sec (" << latency2 << " ms)\n";
+        std::cout << "- Improvement: " << improvement << std::endl;
+        std::cout << "- Ration: " << ratio << std::endl;
+}
+
+ // Compare the ratio of the longest stage in pipelined inference to the E2E latency of a normal inference
+void util::compare_latency(const std::vector<std::string> &stage_labels,
+                            const std::string &e2e_label)
+{
+    // Helper to get duration in ms
+    auto get_latency = [&](const std::string &label) -> double {
+        auto it = util::timer_map.find(label);
+        if (it == util::timer_map.end() || it->second.end == util::TimePoint{})
+            return -1;
+        return static_cast<double>(
+            std::chrono::duration_cast<std::chrono::milliseconds>(it->second.end - it->second.start).count());
+    };
+
+    // Find longest stage
+    double max_stage_latency = -1;
+    std::string max_stage_name;
+    for (const auto &label : stage_labels)
+    {
+        double latency = get_latency(label);
+        if (latency > max_stage_latency)
+        {
+            max_stage_latency = latency;
+            max_stage_name = label;
+        }
+    }
+
+    if (max_stage_latency <= 0)
+    {
+        std::cerr << "[ERROR] Could not retrieve valid stage latencies.\n";
+        return;
+    }
+
+    // Get E2E latency
+    double e2e_latency = get_latency(e2e_label);
+    if (e2e_latency <= 0)
+    {
+        std::cerr << "[ERROR] Could not retrieve E2E latency.\n";
+        return;
+    }
+
+    // Compute ratio
+    double ratio = e2e_latency / max_stage_latency;
+
+    std::cout << "\n[INFO] Latency comparison\n";
+    std::cout << "- Longest stage: " << max_stage_name << " = " << max_stage_latency << " ms\n";
+    std::cout << "- E2E latency (" << e2e_label << "): " << e2e_latency << " ms\n";
+    std::cout << "- Ratio: " << ratio << "\n";
+}
+
 // Preprocess input image to match model input size (normalization, resize, etc.)
 cv::Mat util::preprocess_image(cv::Mat &image, int target_height, int target_width)
 {
