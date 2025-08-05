@@ -22,7 +22,7 @@
 #include "tflite/model.h"
 
 /* Data structures for pipelined inference */
-// Data container used to pass results between pipeline stages ---
+// Data container used to pass results between pipeline stages
 struct IntermediateTensor {
     int index;                            // Index of the input image (used for tracking)
     std::vector<float> data;             // Flattened data (input/output tensor contents)

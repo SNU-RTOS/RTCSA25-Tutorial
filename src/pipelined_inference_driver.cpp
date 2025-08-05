@@ -205,7 +205,7 @@ void inference_driver_worker(const std::vector<std::string>& images,
         }
 
         if(i == 6) util::timer_stop(label);
-    }
+    } // end of for loop
 }
 
 int main(int argc, char* argv[]) {
