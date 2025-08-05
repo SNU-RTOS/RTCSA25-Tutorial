@@ -28,8 +28,8 @@ InterStageQueue<IntermediateTensor> stage0_to_stage1_queue;
 InterStageQueue<IntermediateTensor> stage1_to_stage2_queue;
 
 void stage0_worker(const std::vector<std::string>& images, int rate_ms) {
-    auto next_wakeup_time = std::chrono::high_resolution_clock::now();
-    std::string label = "Stage 0";
+    auto next_wakeup_time = std::chrono::high_resolution_clock::now(); // Initialize next wakeup time
+    std::string label = "Stage 0"; // String variable for util::timer_start/stop
 
     for (size_t i = 0; i < images.size(); ++i) {
         if(i == 6) util::timer_start(label);
@@ -113,8 +113,6 @@ void stage1_worker(tflite::Interpreter* interpreter) {
 
     stage1_to_stage2_queue.signal_shutdown();
 }
-
-
 
 void stage2_worker(tflite::Interpreter* interpreter, std::unordered_map<int, std::string> label_map) {
     IntermediateTensor intermediate_tensor;
