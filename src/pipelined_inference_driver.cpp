@@ -1,7 +1,6 @@
 #include <iostream>
 #include <vector>
 #include <thread>
-#include <mutex>
 #include <opencv2/opencv.hpp>
 #include "tflite/delegates/xnnpack/xnnpack_delegate.h" 
 #include "tflite/delegates/gpu/delegate.h"             
