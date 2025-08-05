@@ -118,7 +118,6 @@ void stage1_worker(tflite::Interpreter* interpreter) {
 
 
 void stage2_worker(tflite::Interpreter* interpreter, std::unordered_map<int, std::string> label_map) {
-    std::cout << "[stage2] Started inference thread (submodel1)\n";
     IntermediateTensor intermediate_tensor;
     uint count = 0; 
     std::string label = "Stage 2";
@@ -161,8 +160,6 @@ void stage2_worker(tflite::Interpreter* interpreter, std::unordered_map<int, std
         if(count == 6) util::timer_stop(label);
         ++count;
     }
-
-    std::cout << "[stage2] Finished all inference.\n";
 }
 
 void inference_driver_worker(const std::vector<std::string>& images, tflite::Interpreter* interpreter, std::unordered_map<int, std::string> label_map) {
