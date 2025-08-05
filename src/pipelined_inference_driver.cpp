@@ -255,24 +255,24 @@ int main(int argc, char* argv[]) {
     auto label_map = util::load_class_labels("class_names.json"); // An unordered_map of class indices to labels for postprocessing
 
     // Running inference driver
-    util::timer_start("Normal Inference Total");
-    std::thread t3(inference_driver_worker, std::ref(images), original_internpreter.get(), label_map);
-    t3.join();
-    util::timer_stop("Normal Inference Total");
+    util::timer_start("Inference Driver Total");
+    std::thread inference_driver_thread(inference_driver_worker, std::ref(images), original_internpreter.get(), label_map);
+    inference_driver_thread.join();
+    util::timer_stop("Inference Driver Total");
 
     // Running pipelined inference driver
-    util::timer_start("Pipelined Inference Total");
-    std::thread t0(stage0_worker, std::ref(images), rate_ms);
-    std::thread t1(stage1_worker, stage1_interpreter.get());
-    std::thread t2(stage2_worker, stage2_interpreter.get(), label_map);
+    util::timer_start("Pipelined Inference Driver Total");
+    std::thread stage0_thread(stage0_worker, std::ref(images), rate_ms);
+    std::thread stage1_thread(stage1_worker, stage1_interpreter.get());
+    std::thread stage2_thread(stage2_worker, stage2_interpreter.get(), label_map);
 
-    t0.join();
-    t1.join();
-    t2.join();
-    util::timer_stop("Pipelined Inference Total");
+    stage0_thread.join();
+    stage1_thread.join();
+    stage2_thread.join();
+    util::timer_stop("Pipelined Inference Driver Total");
 
     // Compare throughput between inference driver and pipelined inference driver
-    util::compare_throughput("Normal Inference Total", "Pipelined Inference Total", images.size());
+    util::compare_throughput("Inference Driver Total", "Pipelined Inference Driver Total", images.size());
     
     // Compare the ratio of the longest stage in pipelined inference to the E2E latency of a normal inference
     std::vector<std::string> stage_labels = {"Stage 0", "Stage 1", "Stage 2"};
