@@ -282,16 +282,16 @@ int main(int argc, char* argv[]) {
     original_internpreter->AllocateTensors();
 
     util::timer_start("Inference Driver Total");
-    // Run Invoke
+    // Create and launch inference driver thread
     std::thread inference_driver_thread(inference_driver_worker, 
         std::ref(images), original_internpreter.get(), label_map);
+    
+    // Wait for inference driver thread to finish
     inference_driver_thread.join();
     util::timer_stop("Inference Driver Total");
 
     // Deallocate GPU delegate
-    if (gpu_delegate_for_original_model) TfLiteGpuDelegateV2Delete(gpu_delegate_for_original_model);
-
-    
+    if (gpu_delegate_for_original_model) TfLiteGpuDelegateV2Delete(gpu_delegate_for_original_model);    
     /* ==================================================== */
     /* Compare performance */
     // Print all timers
