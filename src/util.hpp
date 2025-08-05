@@ -33,12 +33,6 @@ struct IntermediateTensor {
 template <typename T>
 class InterStageQueue
 {
-private:
-    std::queue<T> queue; // C++ standard library queue for storing items
-    std::mutex mutex; // Mutex for synchronizing access to the queue
-    std::condition_variable cond_var; // Used to block 'pop' until an item is available
-    std::atomic<bool> shutdown{false}; // Flag to indicate that no more items will be pushed
-
 public:
     void push(T item) // Push an item to the queue
     {
@@ -77,6 +71,12 @@ public:
         std::unique_lock<std::mutex> lock(mutex);
         return queue.size();
     }
+
+private:
+    std::queue<T> queue; // C++ standard library queue for storing items
+    std::mutex mutex; // Mutex for synchronizing access to the queue
+    std::condition_variable cond_var; // Used to block 'pop' until an item is available
+    std::atomic<bool> shutdown{false}; // Flag to indicate that no more items will be pushed
 };
 
 namespace util
