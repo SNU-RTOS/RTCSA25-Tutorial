@@ -170,7 +170,7 @@ def save_models(output_dir, model_name, sub_model, stage_num, coral=False, singl
     if single_stage:
         filename = f"{model_name}.tflite"
     else:
-        filename = f"sub_model_{stage_num+1}.tflite"
+        filename = f"sub_model_{stage_num}.tflite"
 
     tflite_path = os.path.join(output_dir, filename)
 
