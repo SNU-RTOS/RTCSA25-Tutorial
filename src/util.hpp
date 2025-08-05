@@ -34,13 +34,13 @@ template <typename T>
 class InterStageQueue
 {
 private:
-    std::queue<T> queue;
-    std::mutex mutex;
-    std::condition_variable cond_var;
-    std::atomic<bool> shutdown{false};
+    std::queue<T> queue; // C++ standard library queue for storing items
+    std::mutex mutex; // Mutex for synchronizing access to the queue
+    std::condition_variable cond_var; // Used to block 'pop' until an item is available
+    std::atomic<bool> shutdown{false}; // Flag to indicate that no more items will be pushed
 
 public:
-    void push(T item)
+    void push(T item) // Push an item to the queue
     {
         std::unique_lock<std::mutex> lock(mutex);
         queue.push(std::move(item));
@@ -48,7 +48,7 @@ public:
         cond_var.notify_one();
     }
 
-    bool pop(T &item)
+    bool pop(T &item) // Pop an item from the queue
     {
         std::unique_lock<std::mutex> lock(mutex);
         cond_var.wait(lock, [this]
@@ -64,7 +64,7 @@ public:
         return true;
     }
 
-    void signal_shutdown()
+    void signal_shutdown() // Signal that no more items will be pushed
     {
         std::unique_lock<std::mutex> lock(mutex);
         shutdown = true;
@@ -72,7 +72,7 @@ public:
         cond_var.notify_all();
     }
 
-    size_t size()
+    size_t size() // Get the number of items in the queue
     {
         std::unique_lock<std::mutex> lock(mutex);
         return queue.size();
