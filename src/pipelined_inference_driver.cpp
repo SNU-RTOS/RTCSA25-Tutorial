@@ -142,7 +142,7 @@ void stage2_worker(tflite::Interpreter* interpreter, std::unordered_map<int, std
 
         interpreter->Invoke();
 
-        TfLiteTensor* output_tensor = interpreter->tensor(interpreter->outputs()[0]);
+        float* output_tensor = interpreter->typed_output_tensor<float>(0);
         int num_classes = 1000;
         std::vector<float> probs(num_classes);
         std::memcpy(probs.data(), output_tensor, sizeof(float) * num_classes);
@@ -239,8 +239,7 @@ int main(int argc, char* argv[]) {
     tflite::InterpreterBuilder(*submodel1, resolver)(&stage2_interpreter);
 
     /* Apply delegate */
-    TfLiteGpuDelegateOptionsV2 opts = TfLiteGpuDelegateOptionsV2Default();
-    TfLiteDelegate* gpu_delegate = TfLiteGpuDelegateV2Create(&opts);
+    TfLiteDelegate* gpu_delegate = TfLiteGpuDelegateV2Create(nullptr);
     stage2_interpreter->ModifyGraphWithDelegate(gpu_delegate);
 
     /* Allocate tensors */
@@ -280,7 +279,7 @@ int main(int argc, char* argv[]) {
     tflite::InterpreterBuilder(*original_model, resolver)(&original_internpreter);
 
     // Apply GPU delegate
-    TfLiteDelegate* gpu_delegate_for_original_model = TfLiteGpuDelegateV2Create(&opts);
+    TfLiteDelegate* gpu_delegate_for_original_model = TfLiteGpuDelegateV2Create(nullptr);
     original_internpreter->ModifyGraphWithDelegate(gpu_delegate_for_original_model);
 
     // Allocate tensors
