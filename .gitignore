@@ -14,3 +14,8 @@ models/*
 .vscode
 .env
 .ws_pip/
+src/run_model.cpp
+src/model_utils.h
+src/stb_image.h
+Makefile_model
+run_model*.sh
