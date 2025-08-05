@@ -67,7 +67,7 @@ void stage0_worker(const std::vector<std::string>& images, int rate_ms) {
         // Sleep to control the input rate
         next_wakeup_time += std::chrono::milliseconds(rate_ms);
         std::this_thread::sleep_until(next_wakeup_time);
-    }
+    } // end of for loop
 
     // Notify stage1_worker that no more data will be sent
     stage0_to_stage1_queue.signal_shutdown();
@@ -100,7 +100,7 @@ void stage1_worker(tflite::Interpreter* interpreter) {
             flattened_output.resize(prev + size);
             std::copy(output_tensor->data.f, output_tensor->data.f + size, flattened_output.begin() + prev);
             bounds.push_back(prev + size);
-        }
+        } // end of for loop
 
         intermediate_tensor.data = std::move(flattened_output);
         intermediate_tensor.tensor_boundaries = std::move(bounds);
@@ -109,7 +109,7 @@ void stage1_worker(tflite::Interpreter* interpreter) {
 
         if(count == 6) util::timer_stop(label);
         ++count;
-    }
+    } // end of while loop
 
     stage1_to_stage2_queue.signal_shutdown();
 }
@@ -136,7 +136,7 @@ void stage2_worker(tflite::Interpreter* interpreter, std::unordered_map<int, std
             std::copy(intermediate_tensor.data.begin() + start_idx,
                     intermediate_tensor.data.begin() + end_idx,
                     input_data);
-        }
+        } // end of for loop
 
         interpreter->Invoke();
 
@@ -145,7 +145,7 @@ void stage2_worker(tflite::Interpreter* interpreter, std::unordered_map<int, std
         std::vector<float> probs(num_classes);
         std::memcpy(probs.data(), output_tensor, sizeof(float) * num_classes);
 
-        // !TODO: Is printing out the value everytime necessary?
+        // Get top-3 predictions
         auto top_k_indices = util::get_topK_indices(probs, 3);
         if(count < 5) {
             std::cout << "\n[stage2] Top-3 prediction for image index " << intermediate_tensor.index << ":\n";
@@ -158,7 +158,7 @@ void stage2_worker(tflite::Interpreter* interpreter, std::unordered_map<int, std
 
         if(count == 6) util::timer_stop(label);
         ++count;
-    }
+    } // end of while loop
 }
 
 void inference_driver_worker(const std::vector<std::string>& images, 
