@@ -2,7 +2,6 @@
 #include <vector>
 #include <thread>
 #include <mutex>
-#include <pthread.h>
 #include <opencv2/opencv.hpp>
 #include "tflite/delegates/xnnpack/xnnpack_delegate.h" 
 #include "tflite/delegates/gpu/delegate.h"             
@@ -29,86 +28,90 @@ InterStageQueue<IntermediateTensor> queue0;
 InterStageQueue<IntermediateTensor> queue1;
 
 void stage0_worker(const std::vector<std::string>& images, int rate_ms) {
-    std::cout << "[stage0] Started preprocessing thread\n";
     auto next_wakeup_time = std::chrono::high_resolution_clock::now();
     std::string label = "Stage 0";
 
     for (size_t i = 0; i < images.size(); ++i) {
-        if(i == 5) util::timer_start(label);
+        if(i == 6) util::timer_start(label);
 
-        cv::Mat origin_image = cv::imread(images[i]);
+        // Load image
+        cv::Mat image = cv::imread(images[i]);
 
-        if (origin_image.empty()) {
+        if (image.empty()) {
             std::cerr << "[stage0] Failed to load image: " << images[i] << "\n";
             util::timer_stop(label);
             continue;
         }
         
-        cv::Mat preprocessed_image = util::preprocess_image_resnet(origin_image, 224, 224);
+        // Preprocess image
+        cv::Mat preprocessed_image = util::preprocess_image_resnet(image, 224, 224);
         if (preprocessed_image.empty()) {
             std::cerr << "[stage0] Preprocessing failed: " << images[i] << "\n";
             util::timer_stop(label);
             continue;
         }
 
-        std::vector<float> input_vector(preprocessed_image.total() * preprocessed_image.channels());
-        std::memcpy(input_vector.data(), preprocessed_image.ptr<float>(), input_vector.size() * sizeof(float));
+        // Copy preprocessed_image to input_tensor
+        std::vector<float> input_tensor(preprocessed_image.total() * preprocessed_image.channels());
+        std::memcpy(input_tensor.data(), preprocessed_image.ptr<float>(), 
+                    input_tensor.size() * sizeof(float));
 
+        // Create IntermediateTensor and push to queue0
         IntermediateTensor intermediate_tensor;
         intermediate_tensor.index = i;
-        intermediate_tensor.data = std::move(input_vector);
+        intermediate_tensor.data = std::move(input_tensor);
         queue0.push(intermediate_tensor);
 
-        if(i == 5) util::timer_stop(label);
+        if(i == 6) util::timer_stop(label);
 
+        // Sleep to control the input rate
         next_wakeup_time += std::chrono::milliseconds(rate_ms);
         std::this_thread::sleep_until(next_wakeup_time);
     }
 
-    std::cout << "[stage0] Finished preprocessing. Signaling shutdown.\n";
+    // Signal shutdown to stage1
+    // Notifies stage1_worker that no more data will be sent
     queue0.signal_shutdown();
 }
 
 
 void stage1_worker(tflite::Interpreter* interpreter) {
-    std::cout << "[stage1] Started inference thread (submodel0)\n";
     IntermediateTensor intermediate_tensor;
     uint count = 0;
     std::string label = "Stage 1";
     while (queue0.pop(intermediate_tensor)) {
-        if(count == 5) util::timer_start(label);
+        if(count == 6) util::timer_start(label);
 
         float* input = interpreter->typed_input_tensor<float>(0);
         std::copy(intermediate_tensor.data.begin(), intermediate_tensor.data.end(), input);
 
         interpreter->Invoke();
 
-        std::vector<float> flat;
+        std::vector<float> flattened_output;
         std::vector<int> bounds{0};
 
         for (int idx : interpreter->outputs()) {
-            TfLiteTensor* t = interpreter->tensor(idx);
+            TfLiteTensor* output_tensor = interpreter->tensor(idx);
 
-            int sz = 1;
-            for (int d = 0; d < t->dims->size; ++d)
-                sz *= t->dims->data[d];
+            int size = 1;
+            for (int d = 0; d < output_tensor->dims->size; ++d)
+                size *= output_tensor->dims->data[d];
 
-            int prev = flat.size();
-            flat.resize(prev + sz);
-            std::copy(t->data.f, t->data.f + sz, flat.begin() + prev);
-            bounds.push_back(prev + sz);
+            int prev = flattened_output.size();
+            flattened_output.resize(prev + size);
+            std::copy(output_tensor->data.f, output_tensor->data.f + size, flattened_output.begin() + prev);
+            bounds.push_back(prev + size);
         }
 
-        intermediate_tensor.data = std::move(flat);
+        intermediate_tensor.data = std::move(flattened_output);
         intermediate_tensor.tensor_boundaries = std::move(bounds);
     
         queue1.push(intermediate_tensor);
 
-        if(count == 5) util::timer_stop(label);
+        if(count == 6) util::timer_stop(label);
         ++count;
     }
 
-    std::cout << "[stage1] Finished inference. Signaling shutdown.\n";
     queue1.signal_shutdown();
 }
 
@@ -121,7 +124,7 @@ void stage2_worker(tflite::Interpreter* interpreter, std::unordered_map<int, std
     std::string label = "Stage 2";
     
     while (queue1.pop(intermediate_tensor)) {
-        if(count == 5) util::timer_start(label);
+        if(count == 6) util::timer_start(label);
 
         size_t num_inputs = interpreter->inputs().size();
         size_t tensors_to_copy = std::min(intermediate_tensor.tensor_boundaries.size() - 1, num_inputs);
@@ -139,29 +142,23 @@ void stage2_worker(tflite::Interpreter* interpreter, std::unordered_map<int, std
 
         interpreter->Invoke();
 
-        // !TODO: The postprocessing part is different from the one of the inference driver
-        TfLiteTensor* out = interpreter->tensor(interpreter->outputs()[0]);
-        int numel = 1;
-        for (int d = 0; d < out->dims->size; ++d)
-            numel *= out->dims->data[d];
-
-        std::vector<float> out_data(numel);
-        std::copy(interpreter->typed_output_tensor<float>(0),
-                  interpreter->typed_output_tensor<float>(0) + numel,
-                  out_data.begin());
+        TfLiteTensor* output_tensor = interpreter->tensor(interpreter->outputs()[0]);
+        int num_classes = 1000;
+        std::vector<float> probs(num_classes);
+        std::memcpy(probs.data(), output_tensor, sizeof(float) * num_classes);
 
         // !TODO: Is printing out the value everytime necessary?
-        auto top_k_indices = util::get_topK_indices(out_data, 3);
+        auto top_k_indices = util::get_topK_indices(probs, 3);
         if(count < 5) {
             std::cout << "\n[stage2] Top-3 prediction for image index " << intermediate_tensor.index << ":\n";
             for (int idx : top_k_indices)
             {
                 std::string label = label_map.count(idx) ? label_map[idx] : "unknown";
-                std::cout << "- Class " << idx << " (" << label << "): " << out_data[idx] << std::endl;
+                std::cout << "- Class " << idx << " (" << label << "): " << probs[idx] << std::endl;
             }
         }
 
-        if(count == 5) util::timer_stop(label);
+        if(count == 6) util::timer_stop(label);
         ++count;
     }
 
@@ -174,15 +171,15 @@ void inference_driver_worker(const std::vector<std::string>& images, tflite::Int
     for (size_t i = 0; i < images.size(); ++i) {
         if(i == 6) util::timer_start(label);
 
-        cv::Mat origin_image = cv::imread(images[i]);
+        cv::Mat image = cv::imread(images[i]);
 
-        if (origin_image.empty()) {
+        if (image.empty()) {
             std::cerr << "[stage0] Failed to load image: " << images[i] << "\n";
             if(i == 6) util::timer_stop(label);
             continue;
         }
         
-        cv::Mat preprocessed_image = util::preprocess_image_resnet(origin_image, 224, 224);
+        cv::Mat preprocessed_image = util::preprocess_image_resnet(image, 224, 224);
         if (preprocessed_image.empty()) {
             std::cerr << "[stage0] Preprocessing failed: " << images[i] << "\n";
             if(i == 6) util::timer_stop(label);
@@ -217,59 +214,93 @@ void inference_driver_worker(const std::vector<std::string>& images, tflite::Int
 }
 
 int main(int argc, char* argv[]) {
-    const char* submodel0_path = argv[1];  // Path to first model (used in stage1)
-    const char* submodel1_path = argv[2];  // Path to second model (used in stage2)
-    const char* original_model_path = argv[3]; // Path to the original model
+    /* Receive user input */
+    const char* submodel0_path = argv[1];  // Path to sub-model 0
+    const char* submodel1_path = argv[2];  // Path to sub-model 1
     std::vector<std::string> images;    // List of input image paths
-    int rate_ms = 0;                    // Input rate in milliseconds
+    int rate_ms = 0;                    // Input rate in milliseconds, default is 0 (no delay)
 
-    for (int i = 4; i < argc; ++i) {
+    for (int i = 3; i < argc; ++i) {
         std::string arg = argv[i];
         if (arg.rfind("--input-rate=", 0) == 0)
             rate_ms = std::stoi(arg.substr(13));  // Extract rate from --input-rate=XX
         else
-            images.push_back(arg);  // Treat as image file path
+            images.push_back(arg);  // Assume it's an image path
     }
 
+    /* Load models */
     auto submodel0 = tflite::FlatBufferModel::BuildFromFile(submodel0_path);
     auto submodel1 = tflite::FlatBufferModel::BuildFromFile(submodel1_path);
-    auto original_model = tflite::FlatBufferModel::BuildFromFile(original_model_path);
 
+    /* Build interpreters */
     tflite::ops::builtin::BuiltinOpResolver resolver;
-    std::unique_ptr<tflite::Interpreter> stage1_interpreter, stage2_interpreter, original_internpreter;
+    std::unique_ptr<tflite::Interpreter> stage1_interpreter, stage2_interpreter;
     tflite::InterpreterBuilder(*submodel0, resolver)(&stage1_interpreter);
     tflite::InterpreterBuilder(*submodel1, resolver)(&stage2_interpreter);
-    tflite::InterpreterBuilder(*original_model, resolver)(&original_internpreter);
 
+    /* Apply delegate */
     TfLiteGpuDelegateOptionsV2 opts = TfLiteGpuDelegateOptionsV2Default();
     TfLiteDelegate* gpu_delegate = TfLiteGpuDelegateV2Create(&opts);
     stage2_interpreter->ModifyGraphWithDelegate(gpu_delegate);
 
-    TfLiteDelegate* gpu_delegate_for_original_model = TfLiteGpuDelegateV2Create(&opts);
-    original_internpreter->ModifyGraphWithDelegate(gpu_delegate_for_original_model);
-
+    /* Allocate tensors */
     stage1_interpreter->AllocateTensors(); // Inside this function, XNNPACK delegate is automatically applied
     stage2_interpreter->AllocateTensors();
-    original_internpreter->AllocateTensors();
-
-    auto label_map = util::load_class_labels("class_names.json"); // An unordered_map of class indices to labels for postprocessing
-
-    // Running inference driver
-    util::timer_start("Inference Driver Total");
-    std::thread inference_driver_thread(inference_driver_worker, std::ref(images), original_internpreter.get(), label_map);
-    inference_driver_thread.join();
-    util::timer_stop("Inference Driver Total");
 
     // Running pipelined inference driver
     util::timer_start("Pipelined Inference Driver Total");
+
+    /* Create and launch threads */
     std::thread stage0_thread(stage0_worker, std::ref(images), rate_ms);
+
     std::thread stage1_thread(stage1_worker, stage1_interpreter.get());
+
+    auto label_map = util::load_class_labels("class_names.json"); // Variable for postprocessing
     std::thread stage2_thread(stage2_worker, stage2_interpreter.get(), label_map);
 
+    // Wait for threads to finish
     stage0_thread.join();
     stage1_thread.join();
     stage2_thread.join();
+
     util::timer_stop("Pipelined Inference Driver Total");
+
+    // Deallocate delegates
+    if (gpu_delegate) TfLiteGpuDelegateV2Delete(gpu_delegate);
+
+    /* ==================================================== */
+    /* Set up inference runtime for normal inference driver */
+    const char* original_model_path = "./models/resnet50.tflite";
+
+    // Load model
+    auto original_model = tflite::FlatBufferModel::BuildFromFile(original_model_path);
+
+    // Build interpreter
+    std::unique_ptr<tflite::Interpreter> original_internpreter;
+    tflite::InterpreterBuilder(*original_model, resolver)(&original_internpreter);
+
+    // Apply GPU delegate
+    TfLiteDelegate* gpu_delegate_for_original_model = TfLiteGpuDelegateV2Create(&opts);
+    original_internpreter->ModifyGraphWithDelegate(gpu_delegate_for_original_model);
+
+    // Allocate tensors
+    original_internpreter->AllocateTensors();
+
+    util::timer_start("Inference Driver Total");
+    // Run Invoke
+    std::thread inference_driver_thread(inference_driver_worker, 
+        std::ref(images), original_internpreter.get(), label_map);
+    inference_driver_thread.join();
+    util::timer_stop("Inference Driver Total");
+
+    // Deallocate GPU delegate
+    if (gpu_delegate_for_original_model) TfLiteGpuDelegateV2Delete(gpu_delegate_for_original_model);
+
+    
+    /* ==================================================== */
+    /* Compare performance */
+    // Print all timers
+    util::print_all_timers();
 
     // Compare throughput between inference driver and pipelined inference driver
     util::compare_throughput("Inference Driver Total", "Pipelined Inference Driver Total", images.size());
@@ -277,12 +308,7 @@ int main(int argc, char* argv[]) {
     // Compare the ratio of the longest stage in pipelined inference to the E2E latency of a normal inference
     std::vector<std::string> stage_labels = {"Stage 0", "Stage 1", "Stage 2"};
     util::compare_latency(stage_labels, "Inference Driver");
-
-    // Deallocate delegates
-    if (gpu_delegate) TfLiteGpuDelegateV2Delete(gpu_delegate);
-    if (gpu_delegate_for_original_model) TfLiteGpuDelegateV2Delete(gpu_delegate_for_original_model);
-
-    util::print_all_timers();
+    /* ==================================================== */
 
     return 0;
 }
