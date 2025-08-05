@@ -161,7 +161,8 @@ void stage2_worker(tflite::Interpreter* interpreter, std::unordered_map<int, std
     }
 }
 
-void inference_driver_worker(const std::vector<std::string>& images, tflite::Interpreter* interpreter, std::unordered_map<int, std::string> label_map) {
+void inference_driver_worker(const std::vector<std::string>& images, 
+    tflite::Interpreter* interpreter, std::unordered_map<int, std::string> label_map) {
     std::string label = "Inference Driver";
 
     for (size_t i = 0; i < images.size(); ++i) {
