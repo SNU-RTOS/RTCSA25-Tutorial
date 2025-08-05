@@ -69,8 +69,7 @@ void stage0_worker(const std::vector<std::string>& images, int rate_ms) {
         std::this_thread::sleep_until(next_wakeup_time);
     }
 
-    // Signal shutdown to stage1
-    // Notifies stage1_worker that no more data will be sent
+    // Notify stage1_worker that no more data will be sent
     queue0.signal_shutdown();
 }
 
