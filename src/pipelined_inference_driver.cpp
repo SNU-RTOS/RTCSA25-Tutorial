@@ -22,10 +22,10 @@
     After the inference, postprocessing of the output is done on the CPU. */
 
 // === Queues for inter-stage communication ===
-// queue0: from stage0 to stage1
-// queue1: from stage1 to stage2
-InterStageQueue<IntermediateTensor> queue0;
-InterStageQueue<IntermediateTensor> queue1;
+// stage0_to_stage1_queue: from stage0 to stage1
+// stage1_to_stage2_queue: from stage1 to stage2
+InterStageQueue<IntermediateTensor> stage0_to_stage1_queue;
+InterStageQueue<IntermediateTensor> stage1_to_stage2_queue;
 
 void stage0_worker(const std::vector<std::string>& images, int rate_ms) {
     auto next_wakeup_time = std::chrono::high_resolution_clock::now();
@@ -56,11 +56,11 @@ void stage0_worker(const std::vector<std::string>& images, int rate_ms) {
         std::memcpy(input_tensor.data(), preprocessed_image.ptr<float>(), 
                     input_tensor.size() * sizeof(float));
 
-        // Create IntermediateTensor and push to queue0
+        // Create IntermediateTensor and push to stage0_to_stage1_queue
         IntermediateTensor intermediate_tensor;
         intermediate_tensor.index = i;
         intermediate_tensor.data = std::move(input_tensor);
-        queue0.push(intermediate_tensor);
+        stage0_to_stage1_queue.push(intermediate_tensor);
 
         if(i == 6) util::timer_stop(label);
 
@@ -70,7 +70,7 @@ void stage0_worker(const std::vector<std::string>& images, int rate_ms) {
     }
 
     // Notify stage1_worker that no more data will be sent
-    queue0.signal_shutdown();
+    stage0_to_stage1_queue.signal_shutdown();
 }
 
 
@@ -78,7 +78,7 @@ void stage1_worker(tflite::Interpreter* interpreter) {
     IntermediateTensor intermediate_tensor;
     uint count = 0;
     std::string label = "Stage 1";
-    while (queue0.pop(intermediate_tensor)) {
+    while (stage0_to_stage1_queue.pop(intermediate_tensor)) {
         if(count == 6) util::timer_start(label);
 
         float* input = interpreter->typed_input_tensor<float>(0);
@@ -105,13 +105,13 @@ void stage1_worker(tflite::Interpreter* interpreter) {
         intermediate_tensor.data = std::move(flattened_output);
         intermediate_tensor.tensor_boundaries = std::move(bounds);
     
-        queue1.push(intermediate_tensor);
+        stage1_to_stage2_queue.push(intermediate_tensor);
 
         if(count == 6) util::timer_stop(label);
         ++count;
     }
 
-    queue1.signal_shutdown();
+    stage1_to_stage2_queue.signal_shutdown();
 }
 
 
@@ -121,7 +121,7 @@ void stage2_worker(tflite::Interpreter* interpreter, std::unordered_map<int, std
     uint count = 0; 
     std::string label = "Stage 2";
     
-    while (queue1.pop(intermediate_tensor)) {
+    while (stage1_to_stage2_queue.pop(intermediate_tensor)) {
         if(count == 6) util::timer_start(label);
 
         size_t num_inputs = interpreter->inputs().size();
