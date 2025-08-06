@@ -195,11 +195,11 @@ int main(int argc, char* argv[]) {
     auto class_labels_map = util::load_class_labels(class_labels_path.c_str());
 
     std::vector<std::string> images;    // List of input image paths
-    int rate_ms = 0;                    // Input rate in milliseconds, default is 0 (no delay)
+    int rate_ms = 0;                    // Input period in milliseconds, default is 0 (no delay)
     for (int i = 6; i < argc; ++i) {
         std::string arg = argv[i];
         if (arg.rfind("--input-period=", 0) == 0)
-            rate_ms = std::stoi(arg.substr(15));  // Extract rate from --input-rate=XX
+            rate_ms = std::stoi(arg.substr(15));  // Extract input period from --input-period=XX
         else
             images.push_back(arg);  // Assume it's an image path
     }
