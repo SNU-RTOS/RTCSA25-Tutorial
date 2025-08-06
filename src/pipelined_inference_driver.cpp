@@ -266,8 +266,11 @@ int main(int argc, char* argv[]) {
 
     util::timer_stop("Pipelined Inference Driver Total");
 
-    // Deallocate delegates
-    if (gpu_delegate) TfLiteGpuDelegateV2Delete(gpu_delegate);
+    /* Deallocate delegate */
+    // TODO: Write your code here
+    // 1. Deallocate the XNNPACK delegate
+    // 2. Deallocate the GPU delegate
+    
 
     /* ==================================================== */
     /* Set up inference runtime for normal inference driver */
