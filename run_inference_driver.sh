@@ -14,7 +14,7 @@ base_images=(
     "./images/_images_5.png"
 )
 rate_ms=0
-total_inputs=100
+total_inputs=100 # adjust as needed
 # ---------------------------------
 
 # Sanity check for files

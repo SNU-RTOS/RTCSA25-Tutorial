@@ -163,58 +163,6 @@ void stage2_function(tflite::Interpreter* interpreter, std::unordered_map<int, s
     } // end of while loop
 }
 
-void inference_driver_function(const std::vector<std::string>& images, 
-    tflite::Interpreter* interpreter, std::unordered_map<int, std::string> label_map) {
-    std::string label = "Inference Driver";
-
-    for (size_t i = 0; i < images.size(); ++i) {
-        if(i == 6) util::timer_start(label);
-
-        cv::Mat image = cv::imread(images[i]);
-
-        if (image.empty()) {
-            std::cerr << "[stage0] Failed to load image: " << images[i] << "\n";
-            if(i == 6) util::timer_stop(label);
-            continue;
-        }
-        
-        cv::Mat preprocessed_image = util::preprocess_image_resnet(image, 224, 224);
-        if (preprocessed_image.empty()) {
-            std::cerr << "[stage0] Preprocessing failed: " << images[i] << "\n";
-            if(i == 6) util::timer_stop(label);
-            continue;
-        }
-
-        // Copy preprocessed_image to input_tensor
-        // TODO: Finish this line
-        // float *input_tensor = ???
-        std::memcpy(input_tensor, preprocessed_image.ptr<float>(), 
-                    preprocessed_image.total() * preprocessed_image.elemSize());
-
-
-        // TODO: Invoke the interpreter
-        // ???
-
-        // TODO: Finish this line
-        // float *output_tensor = ???
-        int num_classes = 1000; // Total 1000 classes
-        std::vector<float> probs(num_classes);
-        std::memcpy(probs.data(), output_tensor, sizeof(float) * num_classes);
-
-        auto top_k_indices = util::get_topK_indices(probs, 3);
-        if(i < 5) {
-            std::cout << "\n[Inference Driver] Top-3 prediction for image index " << i << ":\n";
-            for (int idx : top_k_indices)
-            {
-                std::string label = label_map.count(idx) ? label_map[idx] : "unknown";
-                std::cout << "- Class " << idx << " (" << label << "): " << probs[idx] << std::endl;
-            }
-        }
-
-        if(i == 6) util::timer_stop(label);
-    } // end of for loop
-}
-
 int main(int argc, char* argv[]) {
     /* Receive user input */
     if (argc < 7)
@@ -256,92 +204,58 @@ int main(int argc, char* argv[]) {
     }
 
     /* Load models */
-    // TODO: Write your code here
     // 1. Create a std::unique_ptr<tflite::FlatBufferModel> for each sub-model
+    // ======= Write your code here =======
+
+    // ====================================
 
     /* Build interpreters */
-    // TODO: Write your code here
-    // 1. Create a resolver
+    // 1. Create an OpResolver
     // 2. Create two interpreter builders, one for each sub-model
     // 3. Build interpreters using the interpreter builders
+    // ======= Write your code here =======
+
+    // ====================================
 
     /* Apply delegate */
-    // TODO: Write your code here 
     // 1. Create a XNNPACK delegate
     // 2. Apply the delegate to the stage1 interpreter
     // 3. Create a GPU delegate
     // 4. Apply the GPU delegate to the stage2 interpreter
+    // ======= Write your code here =======
+
+    // ====================================
 
     /* Allocate tensors */
-    // TODO: Write your code here
     // 1. Allocate tensors for both interpreters
+    // ======= Write your code here =======
+
+    // ====================================
 
     // Running pipelined inference driver
-    util::timer_start("Pipelined Inference Driver Total");
+    util::timer_start("Total Latency");
 
     auto label_map = util::load_class_labels("class_names.json");
     /* Create and launch threads */
-    // TODO: Write your code here 
     // Hint: std::thread thread_name(function name, arguments...);
     // 1. Launch stage0_function thread which takes images and rate_ms
     // 2. Launch stage1_function thread which takes stage1 interpreter
     // 3. Launch stage2_function thread which takes stage2 interpreter and label_map
+    // ======= Write your code here =======
+
+    // ====================================
 
     /* Wait for threads to finish */  
-    // TODO: Write your code here 
     // Hint: thread_name.join();
+    // ======= Write your code here =======
 
-    util::timer_stop("Pipelined Inference Driver Total");
+    // ====================================
 
-    /* Deallocate delegate */
-    // TODO: Write your code here
-    // 1. Deallocate the XNNPACK delegate
-    // 2. Deallocate the GPU delegate
-    
+    util::timer_stop("Total Latency");
 
-    /* ==================================================== */
-    /* Set up inference runtime for normal inference driver */
-    const std::string original_model_path = "./models/resnet50.tflite";
-
-    /* Load model */ 
-    // TODO: Write your code here 
-
-    /* Build interpreter */ 
-    // TODO: Write your code here 
-
-    /* Apply GPU delegate */ 
-    // TODO: Write your code here 
-
-    /* Allocate tensors */ 
-    // TODO: Write your code here 
-
-    util::timer_start("Inference Driver Total");
-    /* Launch inference driver thread */
-    // TODO: Write your code here 
-    // Hint: std::thread thread_name(function name, arguments...);
-    // Launch inference_driver_function thead which takes images, interpreter, and label_map
-    
-    /* Wait for inference driver thread to finish */ 
-    // TODO: Write your code here 
-    // Hint: thread_name.join();
-    
-    util::timer_stop("Inference Driver Total");
-
-    /* Deallocate GPU delegate */
-    // TODO: Write your code here 
-
-    /* ==================================================== */
-    /* =============== Throughput Comparison ============== */
-    // Print all timers
-    util::print_all_timers();
-
-    // Compare throughput between inference driver and pipelined inference driver
-    // util::compare_throughput("Inference Driver Total", "Pipelined Inference Driver Total", images.size());
-    
-    // Compare the ratio of the longest stage in pipelined inference to the E2E latency of a normal inference
-    // std::vector<std::string> stage_labels = {"Stage 0", "Stage 1", "Stage 2"};
-    // util::compare_latency(stage_labels, "Inference Driver");
-    /* ==================================================== */
+    /* Print average E2E latency and throughput */
+    // util::print_average_latency("Inference Driver");
+    // util::print_throughput("Total Latency", images.size());
 
     return 0;
 }

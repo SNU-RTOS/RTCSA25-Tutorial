@@ -108,6 +108,7 @@ int main(int argc, char *argv[])
     // Starting inference
     util::timer_start("Total Latency");
     for (int i = 0; i < images.size(); i++) {
+        auto next_wakeup_time = std::chrono::high_resolution_clock::now(); // Initialize next wakeup time
         std::string e2e_label = "E2E" + std::to_string(i);
         std::string preprocess_label = "Preprocessing" + std::to_string(i);
         std::string inference_label = "Inference" + std::to_string(i);
@@ -162,6 +163,11 @@ int main(int argc, char *argv[])
 
         util::timer_stop(postprocess_label);
         util::timer_stop(e2e_label);
+
+        // Sleep to control the input rate
+        // If next_wakeup_time is in the past, it will not sleep
+        next_wakeup_time += std::chrono::milliseconds(rate_ms);
+        std::this_thread::sleep_until(next_wakeup_time);
     } // end of for loop
     util::timer_stop("Total Latency");
 

@@ -23,20 +23,28 @@
 
 int main(int argc, char *argv[])
 {
-    if (argc < 4)
+    /* Receive user input */
+    if (argc < 5)
     {
-        std::cerr << "Usage: " << argv[0] << " <gpu_usage> <model_path> <image_path>" << std::endl;
+        std::cerr << "Usage: " << argv[0] 
+                << "<model_path> <gpu_usage> <class_labels_path> <image_path> " // mandatory arguments
+                << std::endl;
         return 1;
     }
 
+    const std::string model_path = argv[1];
+
     bool gpu_usage = false; // If true, GPU delegate is applied
-    const std::string gpu_usage_str = argv[1];
+    const std::string gpu_usage_str = argv[2];
     if(gpu_usage_str == "true"){
         gpu_usage = true;
     }
-    const std::string model_path = argv[2];
-    const std::string image_path = argv[3];
-    const std::string class_names_path = "./class_names.json";
+    
+    // Load class label mapping, used for postprocessing
+    const std::string class_labels_path = argv[3];
+    auto class_labels_map = util::load_class_labels(class_labels_path.c_str());
+
+    const std::string image_path = argv[4];
 
     /* Load .tflite model */
     std::unique_ptr<tflite::FlatBufferModel> _litert_model = tflite::FlatBufferModel::BuildFromFile(model_path.c_str());
@@ -57,8 +65,6 @@ int main(int argc, char *argv[])
         std::cerr << "Failed to Initialize Interpreter" << std::endl;
         return 1;
     }
-
-    // Internals
     instrumentation::inspect_interpreter_instantiation(_litert_model.get(), _litert_resolver, _litert_interpreter.get());
     instrumentation::inspect_interpreter(_litert_interpreter.get());
 
@@ -70,6 +76,8 @@ int main(int argc, char *argv[])
         if (_litert_interpreter->ModifyGraphWithDelegate(_litert_gpu_delegate) == kTfLiteOk)
         {
             delegate_applied = true;
+            // Delete unused delegate
+            if(_litert_xnn_delegate) TfLiteXNNPackDelegateDelete(_litert_xnn_delegate);
         } else {
             std::cerr << "Failed to Apply GPU Delegate" << std::endl;
         }
@@ -77,12 +85,12 @@ int main(int argc, char *argv[])
         if (_litert_interpreter->ModifyGraphWithDelegate(_litert_xnn_delegate) == kTfLiteOk)
         {
             delegate_applied = true;
+            // Delete unused delegate
+            if(_litert_gpu_delegate) TfLiteGpuDelegateV2Delete(_litert_gpu_delegate);
         } else {
             std::cerr << "Failed to Apply XNNPACK Delegate" << std::endl;
         }
     }
-
-    // Internals
     instrumentation::inspect_interpreter_with_delegate(_litert_interpreter.get());
 
     /* Allocate Tensor */
@@ -95,14 +103,14 @@ int main(int argc, char *argv[])
     instrumentation::inspect_tensors(_litert_interpreter.get(), "After Allocate Tensors");
 
     /* Load input image */
-    cv::Mat origin_image = cv::imread(image_path);
-    if (origin_image.empty())
+    cv::Mat image = cv::imread(image_path);
+    if (image.empty())
         throw std::runtime_error("Failed to load image: " + image_path);
 
     /* Preprocessing */
     // Preprocess input data
     cv::Mat preprocessed_image = 
-            util::preprocess_image_resnet(origin_image, 224, 224); // Input tensor shape: [3, 224, 224]
+            util::preprocess_image_resnet(image, 224, 224); // Input tensor shape: [3, 224, 224]
 
     // Copy preprocessed_image to input_tensor
     float* _litert_input_tensor = _litert_interpreter->typed_input_tensor<float>(0);
@@ -117,33 +125,7 @@ int main(int argc, char *argv[])
     instrumentation::inspect_inference(_litert_interpreter.get());
 
     /* PostProcessing */
-    // Get output tensor
-    float *_litert_output_tensor = _litert_interpreter->typed_output_tensor<float>(0); // 1x1000 tensor
-    int num_classes = 1000; // Total 1000 classes
-    std::vector<float> probs(num_classes);
-    std::memcpy(probs.data(), _litert_output_tensor, sizeof(float) * num_classes);
+    // No postprocessing for this example
 
-    /* Print Results */
-    // Load class label mapping
-    auto label_map = util::load_class_labels(class_names_path);
-
-    // Print Top-5 results
-    std::cout << "\n[INFO] Top 5 predictions:" << std::endl;
-    auto top_k_indices = util::get_topK_indices(probs, 5);
-    for (int idx : top_k_indices)
-    {
-        std::string label = label_map.count(idx) ? label_map[idx] : "unknown";
-        std::cout << "- Class " << idx << " (" << label << "): " << probs[idx] << std::endl;
-    }
-
-    /* Deallocate delegates */
-    if (_litert_xnn_delegate)
-    {
-        TfLiteXNNPackDelegateDelete(_litert_xnn_delegate);
-    }
-    if (_litert_gpu_delegate)
-    {
-        TfLiteGpuDelegateV2Delete(_litert_gpu_delegate);
-    }
     return 0;
 }
