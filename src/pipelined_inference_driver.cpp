@@ -26,7 +26,7 @@
 InterStageQueue<IntermediateTensor> stage0_to_stage1_queue;
 InterStageQueue<IntermediateTensor> stage1_to_stage2_queue;
 
-void stage0_worker(const std::vector<std::string>& images, int rate_ms) {
+void stage0_function(const std::vector<std::string>& images, int rate_ms) {
     auto next_wakeup_time = std::chrono::high_resolution_clock::now(); // Initialize next wakeup time
     std::string label = "Stage 0"; // String variable for util::timer_start/stop
 
@@ -69,12 +69,12 @@ void stage0_worker(const std::vector<std::string>& images, int rate_ms) {
         std::this_thread::sleep_until(next_wakeup_time);
     } // end of for loop
 
-    // Notify stage1_worker that no more data will be sent
+    // Notify stage1_function that no more data will be sent
     stage0_to_stage1_queue.signal_shutdown();
 }
 
 
-void stage1_worker(tflite::Interpreter* interpreter) {
+void stage1_function(tflite::Interpreter* interpreter) {
     IntermediateTensor intermediate_tensor;
     uint count = 0;
     std::string label = "Stage 1";
@@ -116,7 +116,7 @@ void stage1_worker(tflite::Interpreter* interpreter) {
     stage1_to_stage2_queue.signal_shutdown();
 }
 
-void stage2_worker(tflite::Interpreter* interpreter, std::unordered_map<int, std::string> label_map) {
+void stage2_function(tflite::Interpreter* interpreter, std::unordered_map<int, std::string> label_map) {
     IntermediateTensor intermediate_tensor;
     uint count = 0; 
     std::string label = "Stage 2";
@@ -163,7 +163,7 @@ void stage2_worker(tflite::Interpreter* interpreter, std::unordered_map<int, std
     } // end of while loop
 }
 
-void inference_driver_worker(const std::vector<std::string>& images, 
+void inference_driver_function(const std::vector<std::string>& images, 
     tflite::Interpreter* interpreter, std::unordered_map<int, std::string> label_map) {
     std::string label = "Inference Driver";
 
@@ -258,9 +258,9 @@ int main(int argc, char* argv[]) {
     /* Create and launch threads */
     // TODO: Write your code here 
     // Hint: std::thread thread_name(function name, arguments...);
-    // 1. Launch stage0_worker thread which takes images and rate_ms
-    // 2. Launch stage1_worker thread which takes stage1 interpreter
-    // 3. Launch stage2_worker thread which takes stage2 interpreter and label_map
+    // 1. Launch stage0_function thread which takes images and rate_ms
+    // 2. Launch stage1_function thread which takes stage1 interpreter
+    // 3. Launch stage2_function thread which takes stage2 interpreter and label_map
 
     /* Wait for threads to finish */  
     // TODO: Write your code here 
@@ -294,7 +294,7 @@ int main(int argc, char* argv[]) {
     /* Launch inference driver thread */
     // TODO: Write your code here 
     // Hint: std::thread thread_name(function name, arguments...);
-    // Launch inference_driver_worker thead which takes images, interpreter, and label_map
+    // Launch inference_driver_function thead which takes images, interpreter, and label_map
     
     /* Wait for inference driver thread to finish */ 
     // TODO: Write your code here 
