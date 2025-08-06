@@ -233,7 +233,10 @@ int main(int argc, char* argv[]) {
     // TODO: Write your code here 
 
     /* Build interpreters */
-    // TODO: Write your code here 
+    // TODO: Write your code here
+    // 1. Create a resolver
+    // 2. Create two interpreter builders, one for each sub-model
+    // 3. Build interpreters using the interpreter builders
 
     /* Apply delegate */
     // TODO: Write your code here 
@@ -289,16 +292,16 @@ int main(int argc, char* argv[]) {
     // TODO: Write your code here 
 
     /* ==================================================== */
-    /* Compare performance */
+    /* =============== Throughput Comparison ============== */
     // Print all timers
     util::print_all_timers();
 
     // Compare throughput between inference driver and pipelined inference driver
-    util::compare_throughput("Inference Driver Total", "Pipelined Inference Driver Total", images.size());
+    // util::compare_throughput("Inference Driver Total", "Pipelined Inference Driver Total", images.size());
     
     // Compare the ratio of the longest stage in pipelined inference to the E2E latency of a normal inference
-    std::vector<std::string> stage_labels = {"Stage 0", "Stage 1", "Stage 2"};
-    util::compare_latency(stage_labels, "Inference Driver");
+    // std::vector<std::string> stage_labels = {"Stage 0", "Stage 1", "Stage 2"};
+    // util::compare_latency(stage_labels, "Inference Driver");
     /* ==================================================== */
 
     return 0;
