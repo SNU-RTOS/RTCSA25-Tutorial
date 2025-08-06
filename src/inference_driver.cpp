@@ -27,8 +27,8 @@ int main(int argc, char *argv[])
     if (argc < 5)
     {
         std::cerr << "Usage: " << argv[0] 
-            << "<model_path> <gpu_usage> <class_labels_path> <image_path 1> " // mandatory arguments
-            << "[image_path 2 ... image_path N] [--input-period=milliseconds]"  // optional arguments
+            << "<model_path> <gpu_usage> <class_labels_path> <image_path 1> "
+            << "[image_path 2 ... image_path N] [--input-period=milliseconds]"
             << std::endl;
         return 1;
     }
@@ -105,7 +105,8 @@ int main(int argc, char *argv[])
 
     // Starting inference
     util::timer_start("Total Latency");
-    auto next_wakeup_time = std::chrono::high_resolution_clock::now(); // Initialize next wakeup time
+    // Initialize next wakeup time
+    auto next_wakeup_time = std::chrono::high_resolution_clock::now();
     int count = 0;
     while (count < images.size()) {
         std::string e2e_label = "E2E" + std::to_string(count);
@@ -153,12 +154,15 @@ int main(int argc, char *argv[])
 
         // Print Top-3 predictions every 10 iterations
         if ((count + 1) % 10 == 0) {
-            std::cout << "\n[INFO] Top 3 predictions for image index " << count << ":" << std::endl;
+            std::cout << "\n[INFO] Top 3 predictions for image index " << count << ":" 
+            << std::endl;
             auto top_k_indices = util::get_topK_indices(probs, 3);
             for (int idx : top_k_indices)
             {
-                std::string label = class_labels_map.count(idx) ? class_labels_map[idx] : "unknown";
-                std::cout << "- Class " << idx << " (" << label << "): " << probs[idx] << std::endl;
+                std::string label = 
+                    class_labels_map.count(idx) ? class_labels_map[idx] : "unknown";
+                std::cout << "- Class " << idx << " (" << label << "): " 
+                    << probs[idx] << std::endl;
             }
         }
 
