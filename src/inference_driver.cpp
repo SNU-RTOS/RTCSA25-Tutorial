@@ -82,6 +82,7 @@ int main(int argc, char *argv[])
         if (_litert_interpreter->ModifyGraphWithDelegate(_litert_gpu_delegate) == kTfLiteOk)
         {
             delegate_applied = true;
+            // Delete unused delegate
             if(_litert_xnn_delegate) TfLiteXNNPackDelegateDelete(_litert_xnn_delegate);
         } else {
             std::cerr << "Failed to Apply GPU Delegate" << std::endl;
@@ -90,6 +91,7 @@ int main(int argc, char *argv[])
         if (_litert_interpreter->ModifyGraphWithDelegate(_litert_xnn_delegate) == kTfLiteOk)
         {
             delegate_applied = true;
+            // Delete unused delegate
             if(_litert_gpu_delegate) TfLiteGpuDelegateV2Delete(_litert_gpu_delegate);
         } else {
             std::cerr << "Failed to Apply XNNPACK Delegate" << std::endl;
@@ -103,8 +105,7 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    // Start of inference
-    // TODO: Add util for average E2E latency
+    // Starting inference
     util::timer_start("Total Latency");
     for (int i = 0; i < images.size(); i++) {
         std::string e2e_label = "E2E" + std::to_string(i);
@@ -161,7 +162,7 @@ int main(int argc, char *argv[])
 
         util::timer_stop(postprocess_label);
         util::timer_stop(e2e_label);
-    }
+    } // end of for loop
     util::timer_stop("Total Latency");
 
     /* Print average E2E latency and throughput */

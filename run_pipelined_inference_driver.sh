@@ -2,19 +2,18 @@
 set -e  # Exit if any command fails
 
 # --------- CONFIGURATION ---------
-script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-submodel0="$script_dir/../models/sub_model_1.tflite"
-submodel1="$script_dir/../models/sub_model_2.tflite"
-original_model="$script_dir/../models/resnet50.tflite"
+submodel0="./models/sub_model_1.tflite"
+submodel1="./models/sub_model_2.tflite"
+original_model="./models/resnet50.tflite"
 rate_ms=0
-executable="$script_dir/../output/pipelined_inference_driver"
+executable="./output/pipelined_inference_driver"
 
 base_images=(
-    "$script_dir/../images/_images_1.png"
-    "$script_dir/../images/_images_2.png"
-    "$script_dir/../images/_images_3.png"
-    "$script_dir/../images/_images_4.png"
-    "$script_dir/../images/_images_5.png"
+    "./images/_images_1.png"
+    "./images/_images_2.png"
+    "./images/_images_3.png"
+    "./images/_images_4.png"
+    "./images/_images_5.png"
 )
 total_inputs=100
 # ---------------------------------

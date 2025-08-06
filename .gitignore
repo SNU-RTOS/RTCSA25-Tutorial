@@ -1,7 +1,7 @@
 __pycache__
 build
 obj
-output
+bin
 *.txt
 *.log
 external

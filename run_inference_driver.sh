@@ -2,7 +2,7 @@
 set -e  # Exit if any command fails
 
 # --------- CONFIGURATION ---------
-executable="./output/inference_driver"
+executable="./bin/inference_driver"
 model="./models/resnet50.tflite"
 gpu_usage="true"
 class_labels="class_labels.json"
@@ -14,7 +14,7 @@ base_images=(
     "./images/_images_5.png"
 )
 rate_ms=0
-total_inputs=10
+total_inputs=100
 # ---------------------------------
 
 # Sanity check for files

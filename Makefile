@@ -4,7 +4,7 @@
 ROOT_DIR := $(shell pwd)
 SRC_DIR := src
 OBJ_DIR := obj
-OUT_DIR := output
+OUT_DIR := bin
 
 # Executables
 TARGETS := inference_driver instrumentation_harness pipelined_inference_driver
