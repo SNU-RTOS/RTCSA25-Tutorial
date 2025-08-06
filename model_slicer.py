@@ -3,7 +3,7 @@ Filename: model_slicer.py
 
 @Author: Woobean Seo
 @Affiliation: Real-Time Operating System Laboratory, Seoul National University
-@Modified by: Taehyun Kim on 07/31/25
+@Modified by: Taehyun Kim on 08/06/25
 @Contact: thkim@redwood.snu.ac.kr
 
 @Description: Model slicer for RTCSA25 tutorial
@@ -31,20 +31,21 @@ def DNNPartitioning(model, start, end, prev_outputs):
     Key data structures:
         stage_inputs (dict): {layer name → tf.keras.Input tensor}, inputs to the current stage.
         reused_tensors (dict): {layer name → tensor}, output tensors reused within the same stage (e.g., for skip connections).
-        stage_outputs (dict): {layer name → tensor}, output tensors needed as input for the next stage (cross-stage connection).
+        cross_tensors (dict): {layer name → tensor}, output tensors needed as input for the next stage (cross-stage connection).
         current_tensor (tensor or list of tensors): intermediate result tensor(s) propagated through current submodel.
+        stage_outputs (tensor or list of tensors): final output tensor(s) of the current submodel stage.
 
     Mechanism:
         - The DNNPartitioning function iteratively applies layers between the specified start and end indices to construct a submodel.
         - It creates tf.keras.Input tensors from the previous stage’s outputs and maps them to the new computation graph of the current stage.
         - Output tensors that are reused within the same stage are cached in reused_tensors, 
-          while those needed by the next stage are collected in stage_outputs to preserve skip connections and cross-stage dependencies.
+          while those needed by the next stage are collected in cross_tensors to preserve skip connections and cross-stage dependencies.
     """
     
     # Initialize data structures
     stage_inputs = {}        
     reused_tensors = {}      
-    stage_outputs = {}      
+    cross_tensors = {}      
     
     # Create tf.keras.Input tensors from previous stage outputs and store for intra-stage reuse.
     for layer_name in prev_outputs.keys():
@@ -62,9 +63,9 @@ def DNNPartitioning(model, start, end, prev_outputs):
         for stage_input in model.layers[start].input:
             layer_name = stage_input.name.split('/')[0]
             
-            # Initialize current_tensor and stage_outputs
+            # Initialize current_tensor and cross_tensors
             current_tensor.append(stage_inputs[layer_name])
-            stage_outputs[layer_name] = stage_inputs[layer_name]
+            cross_tensors[layer_name] = stage_inputs[layer_name]
     # Single stage input
     else: 
         if len(stage_inputs) == 1:
@@ -119,7 +120,7 @@ def DNNPartitioning(model, start, end, prev_outputs):
                 reused_tensors[layer.name] = current_tensor
             # If the output of the layer is needed in the next stage
             else:
-                stage_outputs[layer.name] = current_tensor
+                cross_tensors[layer.name] = current_tensor
         # For single outbound connection        
         else:    
             if i != len(model.layers) - 1:
@@ -131,21 +132,22 @@ def DNNPartitioning(model, start, end, prev_outputs):
                         reused_tensors[layer.name] = current_tensor
                     # If the output is needed by a later stage
                     else:
-                        stage_outputs[layer.name] = current_tensor
+                        cross_tensors[layer.name] = current_tensor
 
     # Construct submodel
     # If there are additional outputs needed for the next stage (e.g., skip connections)
-    if stage_outputs:
-        current_tensor = [current_tensor] + list(stage_outputs.values())
+    stage_outputs = current_tensor
+    if cross_tensors:
+        stage_outputs = [current_tensor] + list(cross_tensors.values())
     # If the current stage produces only a single output tensor
     else:
         try:
-            current_tensor = list(current_tensor)[0]
+            stage_outputs = list(current_tensor)[0]
         except TypeError:
             pass
 
     # Create and return the submodel
-    submodel = tf.keras.models.Model(inputs=list(stage_inputs.values()), outputs=current_tensor)
+    submodel = tf.keras.models.Model(inputs=list(stage_inputs.values()), outputs=stage_outputs)
     return submodel
 
 # Function to create a sample input tensor for the model
