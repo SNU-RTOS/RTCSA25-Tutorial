@@ -108,7 +108,7 @@ int main(int argc, char *argv[])
     // Initialize next wakeup time
     auto next_wakeup_time = std::chrono::high_resolution_clock::now();
     int count = 0;
-    while (count < images.size()) {
+    do {
         std::string e2e_label = "E2E" + std::to_string(count);
         std::string preprocess_label = "Preprocessing" + std::to_string(count);
         std::string inference_label = "Inference" + std::to_string(count);
@@ -174,7 +174,7 @@ int main(int argc, char *argv[])
         next_wakeup_time += std::chrono::milliseconds(input_period_ms);
         std::this_thread::sleep_until(next_wakeup_time);
         ++count;
-    } // end of for loop
+    } while (count < images.size());
     util::timer_stop("Total Latency");
 
     /* Print average E2E latency and throughput */
