@@ -59,6 +59,7 @@ void stage0_worker(const std::vector<std::string>& images, int rate_ms) {
         IntermediateTensor intermediate_tensor;
         intermediate_tensor.index = i;
         intermediate_tensor.data = std::move(input_tensor);
+        intermediate_tensor.tensor_boundaries = {static_cast<int>(input_tensor.size())};
         stage0_to_stage1_queue.push(intermediate_tensor);
 
         if(i == 6) util::timer_stop(label);
@@ -88,7 +89,7 @@ void stage1_worker(tflite::Interpreter* interpreter) {
         // ???
 
         std::vector<float> flattened_output;
-        std::vector<int> bounds{0};
+        std::vector<int> bounds{};
 
         for (int idx : interpreter->outputs()) {
             TfLiteTensor* output_tensor = interpreter->tensor(idx);
@@ -124,12 +125,12 @@ void stage2_worker(tflite::Interpreter* interpreter, std::unordered_map<int, std
         if(count == 6) util::timer_start(label);
 
         size_t num_inputs = interpreter->inputs().size();
-        size_t tensors_to_copy = std::min(intermediate_tensor.tensor_boundaries.size() - 1, num_inputs);
+        size_t tensors_to_copy = std::min(intermediate_tensor.tensor_boundaries.size(), num_inputs);
 
         for (size_t tensor_idx = 0; tensor_idx < tensors_to_copy; tensor_idx++) {
             TfLiteTensor* input_tensor = interpreter->input_tensor(tensor_idx);
             float* input_data = interpreter->typed_input_tensor<float>(tensor_idx);
-            int start_idx = intermediate_tensor.tensor_boundaries[tensor_idx];
+            int start_idx = (tensor_idx == 0) ? 0 : intermediate_tensor.tensor_boundaries[tensor_idx];
             int end_idx = intermediate_tensor.tensor_boundaries[tensor_idx + 1];
 
             std::copy(intermediate_tensor.data.begin() + start_idx,
