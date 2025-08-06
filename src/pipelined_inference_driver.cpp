@@ -220,6 +220,10 @@ int main(int argc, char* argv[]) {
         tflite::FlatBufferModel::BuildFromFile(submodel0_path.c_str());
     std::unique_ptr<tflite::FlatBufferModel> submodel1_model = 
         tflite::FlatBufferModel::BuildFromFile(submodel1_path.c_str());
+    if (!submodel0_model || !submodel1_model) {
+        std::cerr << "Failed to load one or both models" << std::endl;
+        return 1;
+    }
     // ====================================
 
     /* Build interpreters */
