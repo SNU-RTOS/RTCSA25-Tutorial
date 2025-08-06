@@ -13,12 +13,10 @@
 /* Pipelined Inference Driver
  * This driver demonstrates a pipelined inference workflow using two submodels.
  * There are three stages:
- * 1. Stage 0 Preprocessing (CPU): Load and preprocess input images.
- * 2. Stage 1 Inference (CPU): Run inference on the first submodel and 
-    produce intermediate results.
- * 3. Stage 2 Inference (GPU): Take intermediate results from Stage 1 and
-    run inference on the second submodel. 
-    After the inference, postprocessing of the output is done on the CPU. */
+ * 1. Stage 0: Preprocess input on CPU
+ * 2. Stage 1: Run inference for sub-model 0 on CPU
+ * 3. Stage 2: Run inference for sub-model 1 on GPU and 
+               postprocess output on CPU. */
 
 // === Queues for inter-stage communication ===
 // stage0_to_stage1_queue: from stage0 to stage1
@@ -28,7 +26,7 @@ InterStageQueue<IntermediateTensor> stage1_to_stage2_queue;
 
 void stage0_function(const std::vector<std::string>& images, int input_period_ms) {
     auto next_wakeup_time = std::chrono::high_resolution_clock::now();
-    int count = 0;
+    size_t count = 0;
     do {
         std::string label = "Stage0 " + std::to_string(count);
         util::timer_start(label);
@@ -49,15 +47,16 @@ void stage0_function(const std::vector<std::string>& images, int input_period_ms
             continue;
         }
 
-        /* Push processed tensor into stage0_to_stage1_queue */
-        // Create IntermediateTensor, deep-copy preprocessed_image data into it, 
-        // and move it into stage0_to_stage1_queue
+        /* Create IntermediateTensor, deep-copy preprocessed_image data into it, 
+        *  and move it into stage0_to_stage1_queue */
         IntermediateTensor intermediate_tensor;
+        // ======= Write your code here =======
         intermediate_tensor.index = count;
         intermediate_tensor.data.resize(preprocessed_image.total() * preprocessed_image.channels());
         std::memcpy(intermediate_tensor.data.data(), preprocessed_image.ptr<float>(), 
             intermediate_tensor.data.size() * sizeof(float));
         intermediate_tensor.tensor_boundaries = {static_cast<int>(intermediate_tensor.data.size())};
+        // ====================================
         stage0_to_stage1_queue.push(std::move(intermediate_tensor));
 
         util::timer_stop(label);
@@ -73,7 +72,6 @@ void stage0_function(const std::vector<std::string>& images, int input_period_ms
     stage0_to_stage1_queue.signal_shutdown();
 }
 
-
 void stage1_function(tflite::Interpreter* interpreter) {
     IntermediateTensor intermediate_tensor;
 
@@ -81,23 +79,31 @@ void stage1_function(tflite::Interpreter* interpreter) {
         std::string label = "Stage1 " + std::to_string(intermediate_tensor.index);
         util::timer_start(label);
 
-        /* Acess the 0th input tensor of sub-model 0 */
+        /* Access the 0th input tensor of sub-model 0 
+        *  and copy the contents of intermediate_tensor.data into it */
+        // Hint: std::memcpy(destination_ptr, source_ptr, num_bytes);
         // ======= Write your code here =======
         float *input_tensor = interpreter->typed_input_tensor<float>(0);
+        std::memcpy(input_tensor, intermediate_tensor.data.data(), 
+            intermediate_tensor.data.size() * sizeof(float));
         // ====================================
-        std::copy(intermediate_tensor.data.begin(), intermediate_tensor.data.end(), input_tensor);
 
         /* Inference */
         // ======= Write your code here =======
         interpreter->Invoke();
         // ====================================
 
-        /* Get output tensors and push it into the stage1_to_stage2_queue */
+        /* Get output tensors of sub-model 0,
+        *  copy them to an intermediate tensor,
+        *  and push it into the stage1_to_stage2_queue */
         std::vector<float> flattened_output;
         std::vector<int> bounds{};
-        for (int idx : interpreter->outputs()) {
-            TfLiteTensor* output_tensor = interpreter->tensor(idx);
+        // ======= Let's write together =======
+        for (size_t i = 0; i < interpreter->outputs().size(); ++i) {
+            int idx = interpreter->outputs(i); // Returns the index of the output tensor
+            TfLiteTensor* output_tensor = interpreter->tensor(idx); // Returns tensor object
 
+            // Calculating tensor size
             int size = 1;
             for (int d = 0; d < output_tensor->dims->size; ++d)
                 size *= output_tensor->dims->data[d];
@@ -107,11 +113,11 @@ void stage1_function(tflite::Interpreter* interpreter) {
             std::copy(output_tensor->data.f, output_tensor->data.f + size, flattened_output.begin() + current_boundary);
             bounds.push_back(current_boundary + size);
         } // end of for loop
-
         intermediate_tensor.data = std::move(flattened_output);
         intermediate_tensor.tensor_boundaries = std::move(bounds);
+        // ====================================
     
-        stage1_to_stage2_queue.push(intermediate_tensor);
+        stage1_to_stage2_queue.push(std::move(intermediate_tensor));
 
         util::timer_stop(label);
     } // end of while loop
@@ -127,20 +133,20 @@ void stage2_function(tflite::Interpreter* interpreter, std::unordered_map<int, s
         std::string label = "Stage2 " + std::to_string(intermediate_tensor.index);
         util::timer_start(label);
 
-        /* Retrieve input tensors from the intermediate tensor */
+        /* Copy each sub-tensor from intermediate_tensor.data into 
+        *  the corresponding model input tensor */
+        // ======= Let's write together =======
         size_t num_inputs = interpreter->inputs().size();
-        size_t tensors_to_copy = std::min(intermediate_tensor.tensor_boundaries.size(), num_inputs);
-
-        for (size_t tensor_idx = 0; tensor_idx < tensors_to_copy; tensor_idx++) {
+        for (size_t tensor_idx = 0; tensor_idx < num_inputs; tensor_idx++) {
             TfLiteTensor* input_tensor = interpreter->input_tensor(tensor_idx);
             float* input_data = interpreter->typed_input_tensor<float>(tensor_idx);
             int start_idx = (tensor_idx == 0) ? 0 : intermediate_tensor.tensor_boundaries[tensor_idx];
             int end_idx = intermediate_tensor.tensor_boundaries[tensor_idx + 1];
 
-            std::copy(intermediate_tensor.data.begin() + start_idx,
-                    intermediate_tensor.data.begin() + end_idx,
-                    input_data);
+            std::memcpy(input_data, intermediate_tensor.data.data() + start_idx,
+                (end_idx - start_idx) * sizeof(float));
         } // end of for loop
+        // ====================================
 
         /* Inference */
         // ======= Write your code here =======
@@ -148,7 +154,7 @@ void stage2_function(tflite::Interpreter* interpreter, std::unordered_map<int, s
         // ====================================
 
         /* Postprocessing */
-        // Access the 0th output tensor
+        /* Access the 0th output tensor */
         // ======= Write your code here =======
         float *output_tensor = interpreter->typed_output_tensor<float>(0);
         // ====================================
