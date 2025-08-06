@@ -106,8 +106,8 @@ int main(int argc, char *argv[])
     // Starting inference
     util::timer_start("Total Latency");
     // Initialize next wakeup time
-    auto next_wakeup_time = std::chrono::high_resolution_clock::now();
     int count = 0;
+    auto next_wakeup_time = std::chrono::high_resolution_clock::now();
     do {
         std::string e2e_label = "E2E" + std::to_string(count);
         std::string preprocess_label = "Preprocessing" + std::to_string(count);
