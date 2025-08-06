@@ -27,7 +27,7 @@ InterStageQueue<IntermediateTensor> stage0_to_stage1_queue;
 InterStageQueue<IntermediateTensor> stage1_to_stage2_queue;
 
 void stage0_function(const std::vector<std::string>& images, int input_period_ms) {
-    auto next_wakeup_time = std::chrono::high_resolution_clock::now(); // Initialize next wakeup time
+    auto next_wakeup_time = std::chrono::high_resolution_clock::now();
     int count = 0;
     do {
         std::string label = "Stage0 " + std::to_string(count);
@@ -50,17 +50,15 @@ void stage0_function(const std::vector<std::string>& images, int input_period_ms
         }
 
         /* Push processed tensor into stage0_to_stage1_queue */
-        // Copy preprocessed_image to input_tensor
-        std::vector<float> input_tensor(preprocessed_image.total() * preprocessed_image.channels());
-        std::memcpy(input_tensor.data(), preprocessed_image.ptr<float>(), 
-                    input_tensor.size() * sizeof(float));
-
-        // Create IntermediateTensor and push to stage0_to_stage1_queue
+        // Create IntermediateTensor, deep-copy preprocessed_image data into it, 
+        // and move it into stage0_to_stage1_queue
         IntermediateTensor intermediate_tensor;
         intermediate_tensor.index = count;
-        intermediate_tensor.data = std::move(input_tensor);
-        intermediate_tensor.tensor_boundaries = {static_cast<int>(input_tensor.size())};
-        stage0_to_stage1_queue.push(intermediate_tensor);
+        intermediate_tensor.data.resize(preprocessed_image.total() * preprocessed_image.channels());
+        std::memcpy(intermediate_tensor.data.data(), preprocessed_image.ptr<float>(), 
+            intermediate_tensor.data.size() * sizeof(float));
+        intermediate_tensor.tensor_boundaries = {static_cast<int>(intermediate_tensor.data.size())};
+        stage0_to_stage1_queue.push(std::move(intermediate_tensor));
 
         util::timer_stop(label);
 
