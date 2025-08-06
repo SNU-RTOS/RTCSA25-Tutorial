@@ -109,6 +109,12 @@ namespace util
     // Print all timer results stored in timer_map
     void print_all_timers();
 
+    // Calculate and print average latency for a given label
+    void print_average_latency(const std::string &label);
+
+    // Calculate and print throughput for a given label
+    void print_throughput(const std::string &label, size_t num_inputs);
+
     //  Compare throughput between inference driver and pipelined inference driver
     void compare_throughput(const std::string &label1, const std::string &label2, int num_images);
 

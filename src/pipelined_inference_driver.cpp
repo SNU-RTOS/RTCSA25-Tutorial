@@ -217,12 +217,37 @@ void inference_driver_function(const std::vector<std::string>& images,
 
 int main(int argc, char* argv[]) {
     /* Receive user input */
-    const char* submodel0_path = argv[1];  // Path to sub-model 0
-    const char* submodel1_path = argv[2];  // Path to sub-model 1
+    if (argc < 7)
+    {
+        std::cerr << "Usage: " << argv[0] 
+                << "<submodel0_path> <submodel0_gpu_usage> <submodel1_path> 
+                    <submodel1_gpu_usage> <class_labels_path> "                     // mandatory arguments
+                << "<image_path 1> [image_path 2] ... [image_path N] [input_rate]"  // optional arguments
+                << std::endl;
+        return 1;
+    }
+
+    const std::string submodel0_path = argv[1];  // Path to sub-model 0
+    bool submodel0_gpu_usage = false; // If true, GPU delegate is applied to submodel0
+    const std::string gpu_usage_str = argv[2];
+    if(gpu_usage_str == "true"){
+        submodel0_gpu_usage = true;
+    }
+
+    const std::string submodel1_path = argv[3];  // Path to sub-model 1
+    bool submodel1_gpu_usage = false; // If true, GPU delegate is applied
+    gpu_usage_str = argv[4];
+    if(gpu_usage_str == "true"){
+        submodel1_gpu_usage = true;
+    }
+    
+    // Load class label mapping, used for postprocessing
+    const std::string class_labels_path = argv[5];
+    auto class_labels_map = util::load_class_labels(class_labels_path.c_str());
+
     std::vector<std::string> images;    // List of input image paths
     int rate_ms = 0;                    // Input rate in milliseconds, default is 0 (no delay)
-
-    for (int i = 3; i < argc; ++i) {
+    for (int i = 6; i < argc; ++i) {
         std::string arg = argv[i];
         if (arg.rfind("--input-rate=", 0) == 0)
             rate_ms = std::stoi(arg.substr(13));  // Extract rate from --input-rate=XX
@@ -254,7 +279,7 @@ int main(int argc, char* argv[]) {
     // Running pipelined inference driver
     util::timer_start("Pipelined Inference Driver Total");
 
-    auto label_map = util::load_class_labels("class_names.json"); // Variable for postprocessing
+    auto label_map = util::load_class_labels("class_names.json");
     /* Create and launch threads */
     // TODO: Write your code here 
     // Hint: std::thread thread_name(function name, arguments...);
@@ -276,7 +301,7 @@ int main(int argc, char* argv[]) {
 
     /* ==================================================== */
     /* Set up inference runtime for normal inference driver */
-    const char* original_model_path = "./models/resnet50.tflite";
+    const std::string original_model_path = "./models/resnet50.tflite";
 
     /* Load model */ 
     // TODO: Write your code here 

@@ -22,22 +22,38 @@
 
 int main(int argc, char *argv[])
 {
-    if (argc != 4)
+    /* Receive user input */
+    if (argc < 5)
     {
         std::cerr << "Usage: " << argv[0] 
-        << " <gpu_usage> <model_path> <image_path>" << std::endl;
+                << "<model_path> <gpu_usage> <class_labels_path> <image_path 1> " // mandatory arguments
+                << "[image_path 2 ... image_path N] [--input-rate=milliseconds]"  // optional arguments
+                << std::endl;
         return 1;
     }
 
+    const std::string model_path = argv[1];
+
     bool gpu_usage = false; // If true, GPU delegate is applied
-    const std::string gpu_usage_str = argv[1];
+    const std::string gpu_usage_str = argv[2];
     if(gpu_usage_str == "true"){
         gpu_usage = true;
     }
-    const std::string model_path = argv[2];
-    const std::string image_path = argv[3];
-    const std::string class_names_path = "./class_names.json";
+    
+    // Load class label mapping, used for postprocessing
+    const std::string class_labels_path = argv[3];
+    auto class_labels_map = util::load_class_labels(class_labels_path.c_str());
 
+    std::vector<std::string> images;    // List of input image paths
+    int rate_ms = 0;                    // Input rate in milliseconds, default is 0 (no delay)
+    for (int i = 4; i < argc; ++i) {
+        std::string arg = argv[i];
+        if (arg.rfind("--input-rate=", 0) == 0)
+            rate_ms = std::stoi(arg.substr(13));  // Extract rate from --input-rate=XX
+        else
+            images.push_back(arg);  // Assume it's an image path
+    }
+    
     /* Load model */
     std::unique_ptr<tflite::FlatBufferModel> _litert_model = 
         tflite::FlatBufferModel::BuildFromFile(model_path.c_str());
@@ -66,6 +82,7 @@ int main(int argc, char *argv[])
         if (_litert_interpreter->ModifyGraphWithDelegate(_litert_gpu_delegate) == kTfLiteOk)
         {
             delegate_applied = true;
+            if(_litert_xnn_delegate) TfLiteXNNPackDelegateDelete(_litert_xnn_delegate);
         } else {
             std::cerr << "Failed to Apply GPU Delegate" << std::endl;
         }
@@ -73,6 +90,7 @@ int main(int argc, char *argv[])
         if (_litert_interpreter->ModifyGraphWithDelegate(_litert_xnn_delegate) == kTfLiteOk)
         {
             delegate_applied = true;
+            if(_litert_gpu_delegate) TfLiteGpuDelegateV2Delete(_litert_gpu_delegate);
         } else {
             std::cerr << "Failed to Apply XNNPACK Delegate" << std::endl;
         }
@@ -85,68 +103,73 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    /* Load input image */
-    cv::Mat origin_image = cv::imread(image_path);
-    if (origin_image.empty())
-        throw std::runtime_error("Failed to load image: " + image_path);
+    // Start of inference
+    // TODO: Add util for average E2E latency
+    util::timer_start("Total Latency");
+    for (int i = 0; i < images.size(); i++) {
+        std::string e2e_label = "E2E" + std::to_string(i);
+        std::string preprocess_label = "Preprocessing" + std::to_string(i);
+        std::string inference_label = "Inference" + std::to_string(i);
+        std::string postprocess_label = "Postprocessing" + std::to_string(i);
 
-    util::timer_start("E2E Total(Pre+Inf+Post)");
-    util::timer_start("Preprocessing");
-    /* Preprocessing */
-    // Preprocess input data
-    cv::Mat preprocessed_image = 
-            util::preprocess_image_resnet(origin_image, 224, 224);
+        util::timer_start(e2e_label);
+        util::timer_start(preprocess_label);
+        /* Preprocessing */
+        // Load input image
+        cv::Mat image = cv::imread(images[i]);
+        if (image.empty()) {
+            std::cerr << "Failed to load image: " << images[i] << "\n";
+            continue;
+        }
 
-    // Copy preprocessed_image to input_tensor
-    float* _litert_input_tensor = _litert_interpreter->typed_input_tensor<float>(0);
-    std::memcpy(_litert_input_tensor, preprocessed_image.ptr<float>(), 
-                preprocessed_image.total() * preprocessed_image.elemSize());
+        // Preprocess input data
+        cv::Mat preprocessed_image = 
+                util::preprocess_image_resnet(image, 224, 224);
 
-    util::timer_stop("Preprocessing");
+        // Copy preprocessed_image to input_tensor
+        float* _litert_input_tensor = _litert_interpreter->typed_input_tensor<float>(0);
+        std::memcpy(_litert_input_tensor, preprocessed_image.ptr<float>(), 
+                    preprocessed_image.total() * preprocessed_image.elemSize());
 
-    
-    util::timer_start("Inference");
-    /* Inference */
-    if (_litert_interpreter->Invoke() != kTfLiteOk)
-    {
-        std::cerr << "Failed to invoke the interpreter" << std::endl;
-        return 1;
+        util::timer_stop(preprocess_label);
+
+        util::timer_start(inference_label);
+        /* Inference */
+        if (_litert_interpreter->Invoke() != kTfLiteOk)
+        {
+            std::cerr << "Failed to invoke the interpreter" << std::endl;
+            return 1;
+        }
+        util::timer_stop(inference_label);
+
+        util::timer_start(postprocess_label);
+        /* PostProcessing */
+        // Get output tensor
+        float *_litert_output_tensor = _litert_interpreter->typed_output_tensor<float>(0);
+        int num_classes = 1000; // Total 1000 classes
+        std::vector<float> probs(num_classes);
+        std::memcpy(probs.data(), _litert_output_tensor, sizeof(float) * num_classes);
+
+        // Print Top-3 results
+        std::cout << "\n[INFO] Top 3 predictions:" << std::endl;
+        auto top_k_indices = util::get_topK_indices(probs, 3);
+        for (int idx : top_k_indices)
+        {
+            std::string label = class_labels_map.count(idx) ? class_labels_map[idx] : "unknown";
+            std::cout << "- Class " << idx << " (" << label << "): " << probs[idx] << std::endl;
+        }
+
+        util::timer_stop(postprocess_label);
+        util::timer_stop(e2e_label);
     }
-    util::timer_stop("Inference");
+    util::timer_stop("Total Latency");
 
-    util::timer_start("Postprocessing");
-    /* PostProcessing */
-    // Get output tensor
-    float *_litert_output_tensor = _litert_interpreter->typed_output_tensor<float>(0);
-    int num_classes = 1000; // Total 1000 classes
-    std::vector<float> probs(num_classes);
-    std::memcpy(probs.data(), _litert_output_tensor, sizeof(float) * num_classes);
+    /* Print average E2E latency and throughput */
+    util::print_average_latency("E2E");
+    util::print_average_latency("Preprocessing");
+    util::print_average_latency("Inference");
+    util::print_average_latency("Postprocessing");
+    util::print_throughput("Total Latency", images.size());    
 
-    // Load class label mapping
-    auto label_map = util::load_class_labels(class_names_path);
-
-    // Print Top-5 results
-    std::cout << "\n[INFO] Top 5 predictions:" << std::endl;
-    auto top_k_indices = util::get_topK_indices(probs, 5);
-    for (int idx : top_k_indices)
-    {
-        std::string label = label_map.count(idx) ? label_map[idx] : "unknown";
-        std::cout << "- Class " << idx << " (" << label << "): " << probs[idx] << std::endl;
-    }
-
-    util::timer_stop("Postprocessing");
-    util::timer_stop("E2E Total(Pre+Inf+Post)");
-    /* Print Timers */
-    util::print_all_timers();
-
-    /* Deallocate delegates */
-    if (_litert_xnn_delegate)
-    {
-        TfLiteXNNPackDelegateDelete(_litert_xnn_delegate);
-    }
-    if (_litert_gpu_delegate)
-    {
-        TfLiteGpuDelegateV2Delete(_litert_gpu_delegate);
-    }
     return 0;
 }

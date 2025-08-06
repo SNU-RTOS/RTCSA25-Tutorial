@@ -107,6 +107,49 @@ void util::print_all_timers()
     }
 }
 
+// Calculate and print average latency for a given label
+void util::print_average_latency(const std::string &label) {
+    std::vector<long long> latencies;
+
+    for (const auto &[key, record] : util::timer_map) {
+        if (key.find(label) != std::string::npos && record.end != util::TimePoint{}) {
+            auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(record.end - record.start).count();
+            latencies.push_back(ms);
+        }
+    }
+
+    if (!latencies.empty()) {
+        long long sum = std::accumulate(latencies.begin(), latencies.end(), 0LL);
+        double avg = static_cast<double>(sum) / latencies.size();
+        std::cout << "\n[INFO] Average \"" << label << " latency \" (" 
+                  << latencies.size() << " runs): " << avg << " ms" << std::endl;
+    } else {
+        std::cout << "\n[WARN] No measurements found for label containing \"" << label << "\"" << std::endl;
+    }
+}
+
+// Calculate and print throughput for a given label
+void util::print_throughput(const std::string &label, size_t num_inputs) {
+    long long total_latency = -1;
+
+    for (const auto &[key, record] : util::timer_map) {
+        if (key == label && record.end != util::TimePoint{}) {
+            total_latency = std::chrono::duration_cast<std::chrono::milliseconds>(record.end - record.start).count();
+            break; // Assuming only one total latency measurement
+        }
+    }
+
+    if (total_latency > 0 && num_inputs > 0) {
+        double seconds = total_latency / 1000.0;
+        double throughput = num_inputs / seconds;
+        std::cout << "\n[INFO] Throughput for \"" << label << "\": " 
+                  << throughput << " items/sec (" << num_inputs 
+                  << " items in " << total_latency << " ms)" << std::endl;
+    } else {
+        std::cout << "\n[WARN] Cannot calculate throughput for label \"" << label << "\"" << std::endl;
+    }
+}
+
 //  Compare throughput between inference driver and pipelined inference driver
 void util::compare_throughput(const std::string &label1, const std::string &label2, int num_images)
 {
