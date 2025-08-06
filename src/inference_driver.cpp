@@ -1,4 +1,5 @@
 #include <iostream>
+#include <thread>
 #include <vector>
 #include <opencv2/opencv.hpp>
 #include "tflite/delegates/xnnpack/xnnpack_delegate.h"
@@ -27,7 +28,7 @@ int main(int argc, char *argv[])
     {
         std::cerr << "Usage: " << argv[0] 
                 << "<model_path> <gpu_usage> <class_labels_path> <image_path 1> " // mandatory arguments
-                << "[image_path 2 ... image_path N] [--input-rate=milliseconds]"  // optional arguments
+                << "[image_path 2 ... image_path N] [--input-period=milliseconds]"  // optional arguments
                 << std::endl;
         return 1;
     }
@@ -45,11 +46,11 @@ int main(int argc, char *argv[])
     auto class_labels_map = util::load_class_labels(class_labels_path.c_str());
 
     std::vector<std::string> images;    // List of input image paths
-    int rate_ms = 0;                    // Input rate in milliseconds, default is 0 (no delay)
+    int input_period_ms = 0;                    // Input rate in milliseconds, default is 0 (no delay)
     for (int i = 4; i < argc; ++i) {
         std::string arg = argv[i];
-        if (arg.rfind("--input-rate=", 0) == 0)
-            rate_ms = std::stoi(arg.substr(13));  // Extract rate from --input-rate=XX
+        if (arg.rfind("--input-period=", 0) == 0)
+            input_period_ms = std::stoi(arg.substr(15));  // Extract rate from --input-period=XX
         else
             images.push_back(arg);  // Assume it's an image path
     }
@@ -166,7 +167,7 @@ int main(int argc, char *argv[])
 
         // Sleep to control the input rate
         // If next_wakeup_time is in the past, it will not sleep
-        next_wakeup_time += std::chrono::milliseconds(rate_ms);
+        next_wakeup_time += std::chrono::milliseconds(input_period_ms);
         std::this_thread::sleep_until(next_wakeup_time);
     } // end of for loop
     util::timer_stop("Total Latency");

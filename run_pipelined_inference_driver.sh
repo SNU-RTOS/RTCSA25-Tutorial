@@ -5,7 +5,7 @@ set -e  # Exit if any command fails
 submodel0="./models/sub_model_1.tflite"
 submodel1="./models/sub_model_2.tflite"
 original_model="./models/resnet50.tflite"
-rate_ms=0
+input_period_ms=0
 executable="./output/pipelined_inference_driver"
 
 base_images=(
@@ -34,7 +34,7 @@ for ((i=0; i<total_inputs; i++)); do
 done
 
 # Build input-rate argument
-rate_arg="--input-rate=$rate_ms"
+rate_arg="--input-rate=$input_period_ms"
 
 # Show the command
 echo "Running: $executable $submodel0 $submodel1 $rate_arg ${images[@]}"

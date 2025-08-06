@@ -1,6 +1,6 @@
 #include <iostream>
-#include <vector>
 #include <thread>
+#include <vector>
 #include <opencv2/opencv.hpp>
 #include "tflite/delegates/xnnpack/xnnpack_delegate.h" 
 #include "tflite/delegates/gpu/delegate.h"             
@@ -65,6 +65,7 @@ void stage0_function(const std::vector<std::string>& images, int rate_ms) {
         if(i == 6) util::timer_stop(label);
 
         // Sleep to control the input rate
+        // If next_wakeup_time is in the past, it will not sleep
         next_wakeup_time += std::chrono::milliseconds(rate_ms);
         std::this_thread::sleep_until(next_wakeup_time);
     } // end of for loop
@@ -169,8 +170,8 @@ int main(int argc, char* argv[]) {
     {
         std::cerr << "Usage: " << argv[0] 
                 << "<submodel0_path> <submodel0_gpu_usage> <submodel1_path> 
-                    <submodel1_gpu_usage> <class_labels_path> "                     // mandatory arguments
-                << "<image_path 1> [image_path 2] ... [image_path N] [input_rate]"  // optional arguments
+                    <submodel1_gpu_usage> <class_labels_path> <image_path 1> "      // mandatory arguments
+                << "[image_path 2 ... image_path N] [--input-period=milliseconds]"  // optional arguments
                 << std::endl;
         return 1;
     }
@@ -197,8 +198,8 @@ int main(int argc, char* argv[]) {
     int rate_ms = 0;                    // Input rate in milliseconds, default is 0 (no delay)
     for (int i = 6; i < argc; ++i) {
         std::string arg = argv[i];
-        if (arg.rfind("--input-rate=", 0) == 0)
-            rate_ms = std::stoi(arg.substr(13));  // Extract rate from --input-rate=XX
+        if (arg.rfind("--input-period=", 0) == 0)
+            rate_ms = std::stoi(arg.substr(15));  // Extract rate from --input-rate=XX
         else
             images.push_back(arg);  // Assume it's an image path
     }

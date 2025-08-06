@@ -13,7 +13,7 @@ base_images=(
     "./images/_images_4.png"
     "./images/_images_5.png"
 )
-rate_ms=0
+input_period_ms=0
 total_inputs=100 # adjust as needed
 # ---------------------------------
 
@@ -32,8 +32,8 @@ for ((i=0; i<total_inputs; i++)); do
     images+=("${base_images[$index]}")
 done
 
-# Build input-rate argument
-rate_arg="--input-rate=$rate_ms"
+# Build input-period argument
+rate_arg="--input-period=$input_period_ms"
 
 # Show the command
 echo "Running: $executable $model $gpu_usage $class_labels ${images[@]} $rate_arg"
