@@ -256,6 +256,9 @@ int main(int argc, char* argv[]) {
     /* Create and launch threads */
     // TODO: Write your code here 
     // Hint: std::thread thread_name(function name, arguments...);
+    // 1. Launch stage0_worker thread which takes images and rate_ms
+    // 2. Launch stage1_worker thread which takes stage1 interpreter
+    // 3. Launch stage2_worker thread which takes stage2 interpreter and label_map
 
     /* Wait for threads to finish */  
     // TODO: Write your code here 
