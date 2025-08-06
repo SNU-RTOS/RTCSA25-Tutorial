@@ -246,7 +246,8 @@ int main(int argc, char* argv[]) {
     // 4. Apply the GPU delegate to the stage2 interpreter
 
     /* Allocate tensors */
-    // TODO: Write your code here 
+    // TODO: Write your code here
+    // 1. Allocate tensors for both interpreters
 
     // Running pipelined inference driver
     util::timer_start("Pipelined Inference Driver Total");
