@@ -34,17 +34,17 @@ LIBS := -Llib
 # ==============================
 COMMON_SRCS := util.cpp
 INFERENCE_DRIVER_SRCS := inference_driver.cpp $(COMMON_SRCS)
-INTERNALS_SAMPLE_SRCS := instrumentation_harness.cpp instrumentation_utils.cpp $(COMMON_SRCS)
+INST_HARNESS_SRCS := instrumentation_harness.cpp instrumentation_utils.cpp $(COMMON_SRCS)
 PIPELINED_DRIVER_SRCS := pipelined_inference_driver.cpp $(COMMON_SRCS)
 
 # Map sources to objects
 INFERENCE_DRIVER_OBJS := $(patsubst %.cpp,$(OBJ_DIR)/%.o,$(INFERENCE_DRIVER_SRCS))
-INTERNALS_SAMPLE_OBJS := $(patsubst %.cpp,$(OBJ_DIR)/%.o,$(INTERNALS_SAMPLE_SRCS))
+INST_HARNESS_OBJS := $(patsubst %.cpp,$(OBJ_DIR)/%.o,$(INST_HARNESS_SRCS))
 PIPELINED_DRIVER_OBJS := $(patsubst %.cpp,$(OBJ_DIR)/%.o,$(PIPELINED_DRIVER_SRCS))
 
 # Final binaries
 INFERENCE_DRIVER_BIN := $(OUT_DIR)/inference_driver
-INTERNALS_SAMPLE_BIN := $(OUT_DIR)/instrumentation_harness
+INST_HARNESS_BIN := $(OUT_DIR)/instrumentation_harness
 PIPELINED_DRIVER_BIN := $(OUT_DIR)/pipelined_inference_driver
 
 # ==============================
@@ -53,12 +53,12 @@ PIPELINED_DRIVER_BIN := $(OUT_DIR)/pipelined_inference_driver
 .PHONY: all clean
 
 # Build all if no option is provided
-all: $(INFERENCE_DRIVER_BIN) $(INTERNALS_SAMPLE_BIN) $(PIPELINED_DRIVER_BIN)
+all: $(INFERENCE_DRIVER_BIN) $(INST_HARNESS_BIN)
 	@echo "Build completed successfully."
 
 # Optional single target build
 inference: $(INFERENCE_DRIVER_BIN)
-internals: $(INTERNALS_SAMPLE_BIN)
+internals: $(INST_HARNESS_BIN)
 pipelined: $(PIPELINED_DRIVER_BIN)
 
 # Build rules for each binary
@@ -66,7 +66,7 @@ $(INFERENCE_DRIVER_BIN): $(INFERENCE_DRIVER_OBJS)
 	@mkdir -p $(OUT_DIR)
 	$(CXX) $(CXXFLAGS) $(INCS) $(LIBS) $^ -o $@ $(LDFLAGS)
 
-$(INTERNALS_SAMPLE_BIN): $(INTERNALS_SAMPLE_OBJS)
+$(INST_HARNESS_BIN): $(INST_HARNESS_OBJS)
 	@mkdir -p $(OUT_DIR)
 	$(CXX) $(CXXFLAGS) $(INCS) $(LIBS) $^ -o $@ $(LDFLAGS)
 
