@@ -79,18 +79,18 @@ void stage1_function(tflite::Interpreter* interpreter) {
     IntermediateTensor intermediate_tensor;
 
     while (stage0_to_stage1_queue.pop(intermediate_tensor)) {
-        std::string label = "Stage1 " + std::to_string(i);
+        std::string label = "Stage1 " + std::to_string(intermediate_tensor.index);
         util::timer_start(label);
 
         /* Acess the 0th input tensor of sub-model 0 */
         // ======= Write your code here =======
-        float *input_tensor = ???
+        float *input_tensor = interpreter->typed_input_tensor<float>(0);
         // ====================================
         std::copy(intermediate_tensor.data.begin(), intermediate_tensor.data.end(), input_tensor);
 
         /* Inference */
         // ======= Write your code here =======
-        
+        interpreter->Invoke();
         // ====================================
 
         /* Get output tensors and push it into the stage1_to_stage2_queue */
@@ -123,9 +123,9 @@ void stage1_function(tflite::Interpreter* interpreter) {
 
 void stage2_function(tflite::Interpreter* interpreter, std::unordered_map<int, std::string> class_labels_map) {
     IntermediateTensor intermediate_tensor;
-    
+
     while (stage1_to_stage2_queue.pop(intermediate_tensor)) {
-        std::string label = "Stage2 " + std::to_string(i);
+        std::string label = "Stage2 " + std::to_string(intermediate_tensor.index);
         util::timer_start(label);
 
         /* Retrieve input tensors from the intermediate tensor */
@@ -145,13 +145,13 @@ void stage2_function(tflite::Interpreter* interpreter, std::unordered_map<int, s
 
         /* Inference */
         // ======= Write your code here =======
-        
+        interpreter->Invoke();
         // ====================================
 
         /* Postprocessing */
         // Access the 0th output tensor
         // ======= Write your code here =======
-        float *output_tensor = ???
+        float *output_tensor = interpreter->typed_output_tensor<float>(0);
         // ====================================
         int num_classes = 1000;
         std::vector<float> probs(num_classes);
@@ -175,8 +175,8 @@ int main(int argc, char* argv[]) {
     if (argc < 7)
     {
         std::cerr << "Usage: " << argv[0] 
-                << "<submodel0_path> <submodel0_gpu_usage> <submodel1_path> 
-                    <submodel1_gpu_usage> <class_labels_path> <image_path 1> "      // mandatory arguments
+                << "<submodel0_path> <submodel0_gpu_usage> <submodel1_path> "       // mandatory arguments
+                << "<submodel1_gpu_usage> <class_labels_path> <image_path 1> "      
                 << "[image_path 2 ... image_path N] [--input-period=milliseconds]"  // optional arguments
                 << std::endl;
         return 1;
@@ -184,15 +184,15 @@ int main(int argc, char* argv[]) {
 
     const std::string submodel0_path = argv[1];  // Path to sub-model 0
     bool submodel0_gpu_usage = false; // If true, GPU delegate is applied to submodel0
-    const std::string gpu_usage_str = argv[2];
-    if(gpu_usage_str == "true"){
+    const std::string gpu_usage_str1 = argv[2];
+    if(gpu_usage_str1 == "true"){
         submodel0_gpu_usage = true;
     }
 
     const std::string submodel1_path = argv[3];  // Path to sub-model 1
     bool submodel1_gpu_usage = false; // If true, GPU delegate is applied
-    gpu_usage_str = argv[4];
-    if(gpu_usage_str == "true"){
+    const std::string gpu_usage_str2 = argv[4];
+    if(gpu_usage_str2 == "true"){
         submodel1_gpu_usage = true;
     }
     
@@ -213,7 +213,10 @@ int main(int argc, char* argv[]) {
     /* Load models */
     // 1. Create a std::unique_ptr<tflite::FlatBufferModel> for each sub-model
     // ======= Write your code here =======
-
+    std::unique_ptr<tflite::FlatBufferModel> submodel0_model = 
+        tflite::FlatBufferModel::BuildFromFile(submodel0_path.c_str());
+    std::unique_ptr<tflite::FlatBufferModel> submodel1_model = 
+        tflite::FlatBufferModel::BuildFromFile(submodel1_path.c_str());
     // ====================================
 
     /* Build interpreters */
@@ -221,7 +224,13 @@ int main(int argc, char* argv[]) {
     // 2. Create two interpreter builders, one for each sub-model
     // 3. Build interpreters using the interpreter builders
     // ======= Write your code here =======
-
+    tflite::ops::builtin::BuiltinOpResolver resolver;
+    tflite::InterpreterBuilder submodel0_builder(*submodel0_model, resolver);
+    tflite::InterpreterBuilder submodel1_builder(*submodel1_model, resolver);
+    std::unique_ptr<tflite::Interpreter> submodel0_interpreter;
+    std::unique_ptr<tflite::Interpreter> submodel1_interpreter;
+    submodel0_builder(&submodel0_interpreter);
+    submodel1_builder(&submodel1_interpreter);
     // ====================================
 
     /* Apply delegate */
@@ -230,13 +239,54 @@ int main(int argc, char* argv[]) {
     // 3. Create a GPU delegate
     // 4. Apply the GPU delegate to the stage2 interpreter
     // ======= Write your code here =======
-
+    TfLiteDelegate* xnn_delegate_1 = TfLiteXNNPackDelegateCreate(nullptr);
+    TfLiteDelegate* gpu_delegate_1 = TfLiteGpuDelegateV2Create(nullptr);
+    if (submodel0_gpu_usage) {
+        if (submodel0_interpreter->ModifyGraphWithDelegate(gpu_delegate_1) == kTfLiteOk) {
+            // Delete unused delegate
+            if (xnn_delegate_1) TfLiteXNNPackDelegateDelete(xnn_delegate_1);
+        } else {
+            std::cerr << "Failed to apply GPU delegate to submodel0" << std::endl;
+        }
+        
+    } else {
+        if (submodel0_interpreter->ModifyGraphWithDelegate(xnn_delegate_1) == kTfLiteOk) {
+            // Delete unused delegate
+            if (gpu_delegate_1) TfLiteGpuDelegateV2Delete(gpu_delegate_1);
+        } else {
+            std::cerr << "Failed to apply XNNPACK delegate to submodel0" << std::endl;
+        }
+    }
+    TfLiteDelegate* xnn_delegate_2 = TfLiteXNNPackDelegateCreate(nullptr);
+    TfLiteDelegate* gpu_delegate_2 = TfLiteGpuDelegateV2Create(nullptr);
+    if (submodel1_gpu_usage) {
+        if (submodel1_interpreter->ModifyGraphWithDelegate(gpu_delegate_2) == kTfLiteOk) {
+            // Delete unused delegate
+            if (xnn_delegate_2) TfLiteXNNPackDelegateDelete(xnn_delegate_2);
+        } else {
+            std::cerr << "Failed to apply GPU delegate to submodel1" << std::endl;
+        }
+    } else {
+        if (submodel1_interpreter->ModifyGraphWithDelegate(xnn_delegate_2) == kTfLiteOk) {
+            // Delete unused delegate
+            if (gpu_delegate_2) TfLiteGpuDelegateV2Delete(gpu_delegate_2);
+        } else {
+            std::cerr << "Failed to apply XNNPACK delegate to submodel1" << std::endl;
+        }
+    }
     // ====================================
 
     /* Allocate tensors */
     // 1. Allocate tensors for both interpreters
     // ======= Write your code here =======
-
+    if (submodel0_interpreter->AllocateTensors() != kTfLiteOk) {
+        std::cerr << "Failed to allocate tensors for submodel0" << std::endl;
+        return 1;
+    }
+    if (submodel1_interpreter->AllocateTensors() != kTfLiteOk) {
+        std::cerr << "Failed to allocate tensors for submodel1" << std::endl;
+        return 1;
+    }
     // ====================================
 
     // Running pipelined inference driver
@@ -248,22 +298,26 @@ int main(int argc, char* argv[]) {
     // 2. Launch stage1_function thread which takes stage1 interpreter
     // 3. Launch stage2_function thread which takes stage2 interpreter and class_labels_map
     // ======= Write your code here =======
-
+    std::thread stage0_thread(stage0_function, images, input_period_ms);
+    std::thread stage1_thread(stage1_function, submodel0_interpreter.get());
+    std::thread stage2_thread(stage2_function, submodel1_interpreter.get(), class_labels_map);
     // ====================================
 
     /* Wait for threads to finish */  
     // Hint: thread_name.join();
     // ======= Write your code here =======
-
+    stage0_thread.join();
+    stage1_thread.join();
+    stage2_thread.join();
     // ====================================
 
     util::timer_stop("Total Latency");
 
     /* Print average E2E latency and throughput */
-    // util::print_average_latency("Stage0");
-    // util::print_average_latency("Stage1");
-    // util::print_average_latency("Stage2");
-    // util::print_throughput("Total Latency", images.size());
+    util::print_average_latency("Stage0");
+    util::print_average_latency("Stage1");
+    util::print_average_latency("Stage2");
+    util::print_throughput("Total Latency", images.size());
 
     return 0;
 }

@@ -38,7 +38,7 @@ done
 period_arg="--input-period=$input_period_ms"
 
 # Show the command
-echo "Running: $executable $submodel0 $submodel0_gpu_usage $submodel1 $submodel1_gpu_usage $class_labels $period_arg ${images[@]}"
+echo "Running: $executable $submodel0 $submodel0_gpu_usage $submodel1 $submodel1_gpu_usage $class_labels ${images[@]} $period_arg"
 
 # Run
 "$executable" "$submodel0" "$submodel0_gpu_usage" "$submodel1" "$submodel1_gpu_usage" "$class_labels" "${images[@]}" "$period_arg"

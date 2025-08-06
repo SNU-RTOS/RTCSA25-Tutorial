@@ -78,11 +78,9 @@ int main(int argc, char *argv[])
     /* Apply either XNNPACK delegate or GPU delegate */
     TfLiteDelegate* _litert_xnn_delegate = TfLiteXNNPackDelegateCreate(nullptr);
     TfLiteDelegate* _litert_gpu_delegate = TfLiteGpuDelegateV2Create(nullptr);
-    bool delegate_applied = false;
     if(gpu_usage) {
         if (_litert_interpreter->ModifyGraphWithDelegate(_litert_gpu_delegate) == kTfLiteOk)
         {
-            delegate_applied = true;
             // Delete unused delegate
             if(_litert_xnn_delegate) TfLiteXNNPackDelegateDelete(_litert_xnn_delegate);
         } else {
@@ -91,7 +89,6 @@ int main(int argc, char *argv[])
     } else {
         if (_litert_interpreter->ModifyGraphWithDelegate(_litert_xnn_delegate) == kTfLiteOk)
         {
-            delegate_applied = true;
             // Delete unused delegate
             if(_litert_gpu_delegate) TfLiteGpuDelegateV2Delete(_litert_gpu_delegate);
         } else {
