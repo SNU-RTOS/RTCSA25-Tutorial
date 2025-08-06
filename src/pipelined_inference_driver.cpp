@@ -29,7 +29,7 @@ InterStageQueue<IntermediateTensor> stage1_to_stage2_queue;
 void stage0_function(const std::vector<std::string>& images, int input_period_ms) {
     auto next_wakeup_time = std::chrono::high_resolution_clock::now(); // Initialize next wakeup time
     int count = 0;
-    while (count < images.size()) {
+    do {
         std::string label = "Stage0 " + std::to_string(count);
         util::timer_start(label);
         /* Preprocessing */
@@ -69,7 +69,7 @@ void stage0_function(const std::vector<std::string>& images, int input_period_ms
         next_wakeup_time += std::chrono::milliseconds(input_period_ms);
         std::this_thread::sleep_until(next_wakeup_time);
         ++count;
-    } // end of for loop
+    } while (count < images.size());
 
     // Notify stage1_thread that no more data will be sent
     stage0_to_stage1_queue.signal_shutdown();
@@ -256,7 +256,7 @@ int main(int argc, char* argv[]) {
         return 1;
     }
     TfLiteDelegate* gpu_delegate = TfLiteGpuDelegateV2Create(nullptr);
-    if(submodel1_interpreter->ModifyGraphWithDelegate(gpu_delegate_2) != kTfLiteOk) {
+    if(submodel1_interpreter->ModifyGraphWithDelegate(gpu_delegate) != kTfLiteOk) {
         std::cerr << "Failed to apply GPU delegate to submodel1" << std::endl;
         return 1;
     }
