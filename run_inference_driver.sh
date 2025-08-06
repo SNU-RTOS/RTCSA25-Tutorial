@@ -33,10 +33,10 @@ for ((i=0; i<total_inputs; i++)); do
 done
 
 # Build input-period argument
-rate_arg="--input-period=$input_period_ms"
+period_arg="--input-period=$input_period_ms"
 
 # Show the command
-echo "Running: $executable $model $gpu_usage $class_labels ${images[@]} $rate_arg"
+echo "Running: $executable $model $gpu_usage $class_labels ${images[@]} $period_arg"
 
 # Run
-"$executable" "$model" "$gpu_usage" "$class_labels" "${images[@]}" "$rate_arg"
+"$executable" "$model" "$gpu_usage" "$class_labels" "${images[@]}" "$period_arg"

@@ -2,12 +2,12 @@
 set -e  # Exit if any command fails
 
 # --------- CONFIGURATION ---------
+executable="./bin/pipelined_inference_driver"
 submodel0="./models/sub_model_1.tflite"
+submodel0_gpu_usage="false"
 submodel1="./models/sub_model_2.tflite"
-original_model="./models/resnet50.tflite"
-input_period_ms=0
-executable="./output/pipelined_inference_driver"
-
+submodel1_gpu_usage="true"
+class_labels="class_labels.json"
 base_images=(
     "./images/_images_1.png"
     "./images/_images_2.png"
@@ -15,7 +15,8 @@ base_images=(
     "./images/_images_4.png"
     "./images/_images_5.png"
 )
-total_inputs=100
+input_period_ms=0
+total_inputs=100 # adjust as needed
 # ---------------------------------
 
 # Sanity check for files
@@ -34,10 +35,10 @@ for ((i=0; i<total_inputs; i++)); do
 done
 
 # Build input-rate argument
-rate_arg="--input-rate=$input_period_ms"
+period_arg="--input-period=$input_period_ms"
 
 # Show the command
-echo "Running: $executable $submodel0 $submodel1 $rate_arg ${images[@]}"
+echo "Running: $executable $submodel0 $submodel0_gpu_usage $submodel1 $submodel1_gpu_usage $class_labels $period_arg ${images[@]}"
 
 # Run
-"$executable" "$submodel0" "$submodel1" "$rate_arg" "${images[@]}"
+"$executable" "$submodel0" "$submodel0_gpu_usage" "$submodel1" "$submodel1_gpu_usage" "$class_labels" "${images[@]}" "$period_arg"
