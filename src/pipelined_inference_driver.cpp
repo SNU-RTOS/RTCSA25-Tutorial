@@ -96,25 +96,26 @@ void stage1_function(tflite::Interpreter* interpreter) {
         /* Get output tensors of sub-model 0,
         *  copy them to an intermediate tensor,
         *  and push it into the stage1_to_stage2_queue */
-        std::vector<float> flattened_output;
-        std::vector<int> bounds{};
+        // Clear data in it for reuse
+        intermediate_tensor.data.clear();
+        intermediate_tensor.tensor_boundaries.clear();
         // ======= Let's write together =======
         for (size_t i = 0; i < interpreter->outputs().size(); ++i) {
-            int idx = interpreter->outputs(i); // Returns the index of the output tensor
-            TfLiteTensor* output_tensor = interpreter->tensor(idx); // Returns tensor object
+            // Get i-th output tensor object
+            TfLiteTensor* output_tensor = interpreter->output_tensor(i);
 
-            // Calculating tensor size
+            // Calculate tensor size
             int size = 1;
             for (int d = 0; d < output_tensor->dims->size; ++d)
                 size *= output_tensor->dims->data[d];
 
-            int current_boundary = flattened_output.size();
-            flattened_output.resize(current_boundary + size);
-            std::copy(output_tensor->data.f, output_tensor->data.f + size, flattened_output.begin() + current_boundary);
-            bounds.push_back(current_boundary + size);
+            int current_boundary = intermediate_tensor.data.size();
+            intermediate_tensor.data.resize(current_boundary + size);
+            std::memcpy(intermediate_tensor.data.data() + current_boundary,
+                output_tensor->data.f,
+                size * sizeof(float));
+            intermediate_tensor.tensor_boundaries.push_back(current_boundary + size);
         } // end of for loop
-        intermediate_tensor.data = std::move(flattened_output);
-        intermediate_tensor.tensor_boundaries = std::move(bounds);
         // ====================================
     
         stage1_to_stage2_queue.push(std::move(intermediate_tensor));
@@ -136,13 +137,13 @@ void stage2_function(tflite::Interpreter* interpreter, std::unordered_map<int, s
         /* Copy each sub-tensor from intermediate_tensor.data into 
         *  the corresponding model input tensor */
         // ======= Let's write together =======
-        size_t num_inputs = interpreter->inputs().size();
-        for (size_t tensor_idx = 0; tensor_idx < num_inputs; tensor_idx++) {
-            TfLiteTensor* input_tensor = interpreter->input_tensor(tensor_idx);
-            float* input_data = interpreter->typed_input_tensor<float>(tensor_idx);
-            int start_idx = (tensor_idx == 0) ? 0 : intermediate_tensor.tensor_boundaries[tensor_idx];
-            int end_idx = intermediate_tensor.tensor_boundaries[tensor_idx + 1];
+        for (size_t i = 0; i < interpreter->inputs().size(); ++i) {
+            // Get i-th input tensor of sub-model 1
+            float* input_data = interpreter->typed_input_tensor<float>(i);
 
+            // Copy data from intermediate tensor to i-th input tensor
+            int start_idx = (i == 0) ? 0 : intermediate_tensor.tensor_boundaries[i-1];
+            int end_idx = intermediate_tensor.tensor_boundaries[i];
             std::memcpy(input_data, intermediate_tensor.data.data() + start_idx,
                 (end_idx - start_idx) * sizeof(float));
         } // end of for loop
