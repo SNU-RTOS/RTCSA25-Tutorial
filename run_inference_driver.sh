@@ -14,7 +14,7 @@ base_images=(
     "./images/_images_5.png"
 )
 input_period_ms=0
-total_inputs=100 # adjust as needed
+total_inputs=300 # adjust as needed
 # ---------------------------------
 
 # Sanity check for files
@@ -39,4 +39,4 @@ period_arg="--input-period=$input_period_ms"
 echo "Running: $executable $model $gpu_usage $class_labels ${images[@]} $period_arg"
 
 # Run
-"$executable" "$model" "$gpu_usage" "$class_labels" "${images[@]}" "$period_arg"
+taskset -c 7-7 "$executable" "$model" "$gpu_usage" "$class_labels" "${images[@]}" "$period_arg"
