@@ -28,15 +28,15 @@ InterStageQueue<IntermediateTensor> stage1_to_stage2_queue;
 
 void stage0_function(const std::vector<std::string>& images, int input_period_ms) {
     auto next_wakeup_time = std::chrono::high_resolution_clock::now(); // Initialize next wakeup time
-
-    for (size_t i = 0; i < images.size(); ++i) {
-        std::string label = "Stage0 " + std::to_string(i);
+    int count = 0;
+    while (count < images.size()) {
+        std::string label = "Stage0 " + std::to_string(count);
         util::timer_start(label);
         /* Preprocessing */
         // Load image
-        cv::Mat image = cv::imread(images[i]);
+        cv::Mat image = cv::imread(images[count]);
         if (image.empty()) {
-            std::cerr << "[Stage0] Failed to load image: " << images[i] << "\n";
+            std::cerr << "[Stage0] Failed to load image: " << images[count] << "\n";
             util::timer_stop(label);
             continue;
         }
@@ -44,7 +44,7 @@ void stage0_function(const std::vector<std::string>& images, int input_period_ms
         // Preprocess image
         cv::Mat preprocessed_image = util::preprocess_image_resnet(image, 224, 224);
         if (preprocessed_image.empty()) {
-            std::cerr << "[Stage0] Preprocessing failed: " << images[i] << "\n";
+            std::cerr << "[Stage0] Preprocessing failed: " << images[count] << "\n";
             util::timer_stop(label);
             continue;
         }
@@ -57,7 +57,7 @@ void stage0_function(const std::vector<std::string>& images, int input_period_ms
 
         // Create IntermediateTensor and push to stage0_to_stage1_queue
         IntermediateTensor intermediate_tensor;
-        intermediate_tensor.index = i;
+        intermediate_tensor.index = count;
         intermediate_tensor.data = std::move(input_tensor);
         intermediate_tensor.tensor_boundaries = {static_cast<int>(input_tensor.size())};
         stage0_to_stage1_queue.push(intermediate_tensor);
@@ -68,6 +68,7 @@ void stage0_function(const std::vector<std::string>& images, int input_period_ms
         // If next_wakeup_time is in the past, it will not sleep
         next_wakeup_time += std::chrono::milliseconds(input_period_ms);
         std::this_thread::sleep_until(next_wakeup_time);
+        ++count;
     } // end of for loop
 
     // Notify stage1_thread that no more data will be sent
@@ -157,13 +158,15 @@ void stage2_function(tflite::Interpreter* interpreter, std::unordered_map<int, s
         std::vector<float> probs(num_classes);
         std::memcpy(probs.data(), output_tensor, sizeof(float) * num_classes);
 
-        // Get top-3 predictions
-        auto top_k_indices = util::get_topK_indices(probs, 3);
-        std::cout << "\n[stage2] Top-3 prediction for image index " << intermediate_tensor.index << ":\n";
-        for (int idx : top_k_indices)
-        {
-            std::string label = class_labels_map.count(idx) ? class_labels_map[idx] : "unknown";
-            std::cout << "- Class " << idx << " (" << label << "): " << probs[idx] << std::endl;
+        // Print top-3 predictions every 10 iterations
+        if((intermediate_tensor.index+1) % 10 == 0) {
+            auto top_k_indices = util::get_topK_indices(probs, 3);
+            std::cout << "\n[stage2] Top-3 prediction for image index " << intermediate_tensor.index << ":\n";
+            for (int idx : top_k_indices)
+            {
+                std::string label = class_labels_map.count(idx) ? class_labels_map[idx] : "unknown";
+                std::cout << "- Class " << idx << " (" << label << "): " << probs[idx] << std::endl;
+            }
         }
 
         util::timer_stop(label);

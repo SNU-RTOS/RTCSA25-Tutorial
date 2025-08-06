@@ -16,7 +16,7 @@ base_images=(
     "./images/_images_5.png"
 )
 input_period_ms=0
-total_inputs=300 # adjust as needed
+total_inputs=500 # adjust as needed
 # ---------------------------------
 
 # Sanity check for files

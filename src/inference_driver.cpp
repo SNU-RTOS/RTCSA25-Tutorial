@@ -27,9 +27,9 @@ int main(int argc, char *argv[])
     if (argc < 5)
     {
         std::cerr << "Usage: " << argv[0] 
-                << "<model_path> <gpu_usage> <class_labels_path> <image_path 1> " // mandatory arguments
-                << "[image_path 2 ... image_path N] [--input-period=milliseconds]"  // optional arguments
-                << std::endl;
+            << "<model_path> <gpu_usage> <class_labels_path> <image_path 1> " // mandatory arguments
+            << "[image_path 2 ... image_path N] [--input-period=milliseconds]"  // optional arguments
+            << std::endl;
         return 1;
     }
 
@@ -46,12 +46,12 @@ int main(int argc, char *argv[])
     auto class_labels_map = util::load_class_labels(class_labels_path.c_str());
 
     std::vector<std::string> images;    // List of input image paths
-    int input_period_ms = 0;                    // Input period in milliseconds, default is 0 (no delay)
+    int input_period_ms = 0;            // Input period in milliseconds, default is 0 (no delay)
     for (int i = 4; i < argc; ++i) {
         std::string arg = argv[i];
-        if (arg.rfind("--input-period=", 0) == 0)
-            input_period_ms = std::stoi(arg.substr(15));  // Extract input period from --input-period=XX
-        else
+        if (arg.rfind("--input-period=", 0) == 0) // Check for input period argument
+            input_period_ms = std::stoi(arg.substr(15));
+        else 
             images.push_back(arg);  // Assume it's an image path
     }
     
@@ -106,19 +106,20 @@ int main(int argc, char *argv[])
     // Starting inference
     util::timer_start("Total Latency");
     auto next_wakeup_time = std::chrono::high_resolution_clock::now(); // Initialize next wakeup time
-    for (int i = 0; i < images.size(); i++) {
-        std::string e2e_label = "E2E" + std::to_string(i);
-        std::string preprocess_label = "Preprocessing" + std::to_string(i);
-        std::string inference_label = "Inference" + std::to_string(i);
-        std::string postprocess_label = "Postprocessing" + std::to_string(i);
+    int count = 0;
+    while (count < images.size()) {
+        std::string e2e_label = "E2E" + std::to_string(count);
+        std::string preprocess_label = "Preprocessing" + std::to_string(count);
+        std::string inference_label = "Inference" + std::to_string(count);
+        std::string postprocess_label = "Postprocessing" + std::to_string(count);
 
         util::timer_start(e2e_label);
         util::timer_start(preprocess_label);
         /* Preprocessing */
         // Load input image
-        cv::Mat image = cv::imread(images[i]);
+        cv::Mat image = cv::imread(images[count]);
         if (image.empty()) {
-            std::cerr << "Failed to load image: " << images[i] << "\n";
+            std::cerr << "Failed to load image: " << images[count] << "\n";
             continue;
         }
 
@@ -150,13 +151,15 @@ int main(int argc, char *argv[])
         std::vector<float> probs(num_classes);
         std::memcpy(probs.data(), _litert_output_tensor, sizeof(float) * num_classes);
 
-        // Print Top-3 results
-        std::cout << "\n[INFO] Top 3 predictions:" << std::endl;
-        auto top_k_indices = util::get_topK_indices(probs, 3);
-        for (int idx : top_k_indices)
-        {
-            std::string label = class_labels_map.count(idx) ? class_labels_map[idx] : "unknown";
-            std::cout << "- Class " << idx << " (" << label << "): " << probs[idx] << std::endl;
+        // Print Top-3 predictions every 10 iterations
+        if ((count + 1) % 10 == 0) {
+            std::cout << "\n[INFO] Top 3 predictions for image index " << count << ":" << std::endl;
+            auto top_k_indices = util::get_topK_indices(probs, 3);
+            for (int idx : top_k_indices)
+            {
+                std::string label = class_labels_map.count(idx) ? class_labels_map[idx] : "unknown";
+                std::cout << "- Class " << idx << " (" << label << "): " << probs[idx] << std::endl;
+            }
         }
 
         util::timer_stop(postprocess_label);
@@ -166,6 +169,7 @@ int main(int argc, char *argv[])
         // If next_wakeup_time is in the past, it will not sleep
         next_wakeup_time += std::chrono::milliseconds(input_period_ms);
         std::this_thread::sleep_until(next_wakeup_time);
+        ++count;
     } // end of for loop
     util::timer_stop("Total Latency");
 
