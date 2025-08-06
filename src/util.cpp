@@ -135,7 +135,7 @@ void util::compare_throughput(const std::string &label1, const std::string &labe
         std::cout << "\n[INFO] Throughput comparison\n";
         std::cout << "- " << label1 << ": " << throughput1 << " images/sec (" << latency1 << " ms)\n";
         std::cout << "- " << label2 << ": " << throughput2 << " images/sec (" << latency2 << " ms)\n";
-        std::cout << "- Improvement: " << improvement << std::endl;
+        std::cout << "- Improvement: " << improvement << "%" << std::endl;
         std::cout << "- Ration: " << ratio << std::endl;
 }
 
