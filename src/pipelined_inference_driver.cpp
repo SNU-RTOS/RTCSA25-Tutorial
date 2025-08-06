@@ -234,6 +234,10 @@ int main(int argc, char* argv[]) {
     std::unique_ptr<tflite::Interpreter> submodel1_interpreter;
     submodel0_builder(&submodel0_interpreter);
     submodel1_builder(&submodel1_interpreter);
+    if (!submodel0_interpreter || !submodel1_interpreter) {
+        std::cerr << "Failed to initialize interpreters" << std::endl;
+        return 1;
+    }
     // ====================================
 
     /* Apply delegate */
@@ -243,9 +247,15 @@ int main(int argc, char* argv[]) {
     // 4. Apply the GPU delegate to the submodel1 interpreter
     // ======= Write your code here =======
     TfLiteDelegate* xnn_delegate = TfLiteXNNPackDelegateCreate(nullptr);
-    submodel0_interpreter->ModifyGraphWithDelegate(xnn_delegate);
+    if(submodel0_interpreter->ModifyGraphWithDelegate(xnn_delegate) != kTfLiteOk) {
+        std::cerr << "Failed to apply XNNPACK delegate to submodel0" << std::endl;
+        return 1;
+    }
     TfLiteDelegate* gpu_delegate = TfLiteGpuDelegateV2Create(nullptr);
-    submodel1_interpreter->ModifyGraphWithDelegate(gpu_delegate_2);
+    if(submodel1_interpreter->ModifyGraphWithDelegate(gpu_delegate_2) != kTfLiteOk) {
+        std::cerr << "Failed to apply GPU delegate to submodel1" << std::endl;
+        return 1;
+    }
     // ====================================
 
     /* Allocate tensors */
