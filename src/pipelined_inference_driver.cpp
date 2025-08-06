@@ -278,31 +278,31 @@ int main(int argc, char* argv[]) {
     /* Set up inference runtime for normal inference driver */
     const char* original_model_path = "./models/resnet50.tflite";
 
-    // Load model
+    /* Load model */ 
     // TODO: Write your code here 
 
-    // Build interpreter
+    /* Build interpreter */ 
     // TODO: Write your code here 
 
-    // Apply GPU delegate
+    /* Apply GPU delegate */ 
     // TODO: Write your code here 
 
-    // Allocate tensors
+    /* Allocate tensors */ 
     // TODO: Write your code here 
 
     util::timer_start("Inference Driver Total");
-    // Create and launch inference driver thread
+    /* Launch inference driver thread */
     // TODO: Write your code here 
     // Hint: std::thread thread_name(function name, arguments...);
     // Launch inference_driver_worker thead which takes images, interpreter, and label_map
     
-    // Wait for inference driver thread to finish
+    /* Wait for inference driver thread to finish */ 
     // TODO: Write your code here 
     // Hint: thread_name.join();
     
     util::timer_stop("Inference Driver Total");
 
-    // Deallocate GPU delegate
+    /* Deallocate GPU delegate */
     // TODO: Write your code here 
 
     /* ==================================================== */
