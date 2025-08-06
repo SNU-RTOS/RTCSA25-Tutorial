@@ -230,7 +230,8 @@ int main(int argc, char* argv[]) {
     }
 
     /* Load models */
-    // TODO: Write your code here 
+    // TODO: Write your code here
+    // 1. Create a std::unique_ptr<tflite::FlatBufferModel> for each sub-model
 
     /* Build interpreters */
     // TODO: Write your code here
