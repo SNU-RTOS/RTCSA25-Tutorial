@@ -238,45 +238,14 @@ int main(int argc, char* argv[]) {
 
     /* Apply delegate */
     // 1. Create a XNNPACK delegate
-    // 2. Apply the delegate to the stage1 interpreter
+    // 2. Apply the delegate to the submodel0 interpreter
     // 3. Create a GPU delegate
-    // 4. Apply the GPU delegate to the stage2 interpreter
+    // 4. Apply the GPU delegate to the submodel1 interpreter
     // ======= Write your code here =======
-    TfLiteDelegate* xnn_delegate_1 = TfLiteXNNPackDelegateCreate(nullptr);
-    TfLiteDelegate* gpu_delegate_1 = TfLiteGpuDelegateV2Create(nullptr);
-    if (submodel0_gpu_usage) {
-        if (submodel0_interpreter->ModifyGraphWithDelegate(gpu_delegate_1) == kTfLiteOk) {
-            // Delete unused delegate
-            if (xnn_delegate_1) TfLiteXNNPackDelegateDelete(xnn_delegate_1);
-        } else {
-            std::cerr << "Failed to apply GPU delegate to submodel0" << std::endl;
-        }
-        
-    } else {
-        if (submodel0_interpreter->ModifyGraphWithDelegate(xnn_delegate_1) == kTfLiteOk) {
-            // Delete unused delegate
-            if (gpu_delegate_1) TfLiteGpuDelegateV2Delete(gpu_delegate_1);
-        } else {
-            std::cerr << "Failed to apply XNNPACK delegate to submodel0" << std::endl;
-        }
-    }
-    TfLiteDelegate* xnn_delegate_2 = TfLiteXNNPackDelegateCreate(nullptr);
-    TfLiteDelegate* gpu_delegate_2 = TfLiteGpuDelegateV2Create(nullptr);
-    if (submodel1_gpu_usage) {
-        if (submodel1_interpreter->ModifyGraphWithDelegate(gpu_delegate_2) == kTfLiteOk) {
-            // Delete unused delegate
-            if (xnn_delegate_2) TfLiteXNNPackDelegateDelete(xnn_delegate_2);
-        } else {
-            std::cerr << "Failed to apply GPU delegate to submodel1" << std::endl;
-        }
-    } else {
-        if (submodel1_interpreter->ModifyGraphWithDelegate(xnn_delegate_2) == kTfLiteOk) {
-            // Delete unused delegate
-            if (gpu_delegate_2) TfLiteGpuDelegateV2Delete(gpu_delegate_2);
-        } else {
-            std::cerr << "Failed to apply XNNPACK delegate to submodel1" << std::endl;
-        }
-    }
+    TfLiteDelegate* xnn_delegate = TfLiteXNNPackDelegateCreate(nullptr);
+    submodel0_interpreter->ModifyGraphWithDelegate(xnn_delegate);
+    TfLiteDelegate* gpu_delegate = TfLiteGpuDelegateV2Create(nullptr);
+    submodel1_interpreter->ModifyGraphWithDelegate(gpu_delegate_2);
     // ====================================
 
     /* Allocate tensors */
