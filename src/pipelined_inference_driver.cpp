@@ -294,6 +294,7 @@ int main(int argc, char* argv[]) {
     // Create and launch inference driver thread
     // TODO: Write your code here 
     // Hint: std::thread thread_name(function name, arguments...);
+    // Launch inference_driver_worker thead which takes images, interpreter, and label_map
     
     // Wait for inference driver thread to finish
     // TODO: Write your code here 
