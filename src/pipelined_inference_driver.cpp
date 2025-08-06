@@ -178,10 +178,10 @@ int main(int argc, char* argv[]) {
     if (argc < 7)
     {
         std::cerr << "Usage: " << argv[0] 
-                << "<submodel0_path> <submodel0_gpu_usage> <submodel1_path> "       // mandatory arguments
-                << "<submodel1_gpu_usage> <class_labels_path> <image_path 1> "      
-                << "[image_path 2 ... image_path N] [--input-period=milliseconds]"  // optional arguments
-                << std::endl;
+            << "<submodel0_path> <submodel0_gpu_usage> <submodel1_path> "      
+            << "<submodel1_gpu_usage> <class_labels_path> <image_path 1> "      
+            << "[image_path 2 ... image_path N] [--input-period=milliseconds]"
+            << std::endl;
         return 1;
     }
 
