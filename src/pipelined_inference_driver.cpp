@@ -240,6 +240,10 @@ int main(int argc, char* argv[]) {
 
     /* Apply delegate */
     // TODO: Write your code here 
+    // 1. Create a XNNPACK delegate
+    // 2. Apply the delegate to the stage1 interpreter
+    // 3. Create a GPU delegate
+    // 4. Apply the GPU delegate to the stage2 interpreter
 
     /* Allocate tensors */
     // TODO: Write your code here 
