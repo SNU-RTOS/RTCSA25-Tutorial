@@ -169,7 +169,8 @@ void stage2_function(tflite::Interpreter* interpreter,
         // Print top-3 predictions every 10 iterations
         if((intermediate_tensor.index+1) % 10 == 0) {
             auto top_k_indices = util::get_topK_indices(probs, 3);
-            std::cout << "\n[stage2] Top-3 prediction for image index " << intermediate_tensor.index << ":\n";
+            std::cout << "\n[stage2] Top-3 prediction for image index " 
+                << intermediate_tensor.index << ":\n";
             for (int idx : top_k_indices)
             {
                 std::string label = 
