@@ -52,10 +52,12 @@ void stage0_function(const std::vector<std::string>& images, int input_period_ms
         IntermediateTensor intermediate_tensor;
         // ======= Write your code here =======
         intermediate_tensor.index = idx;
-        intermediate_tensor.data.resize(preprocessed_image.total() * preprocessed_image.channels());
+        intermediate_tensor.data.resize(
+            preprocessed_image.total() * preprocessed_image.channels());
         std::memcpy(intermediate_tensor.data.data(), preprocessed_image.ptr<float>(), 
             intermediate_tensor.data.size() * sizeof(float));
-        intermediate_tensor.tensor_boundaries = {static_cast<int>(intermediate_tensor.data.size())};
+        intermediate_tensor.tensor_boundaries = 
+            {static_cast<int>(intermediate_tensor.data.size())};
         // ====================================
         stage0_to_stage1_queue.push(std::move(intermediate_tensor));
         ++idx;
