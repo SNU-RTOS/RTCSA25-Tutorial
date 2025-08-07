@@ -81,7 +81,7 @@ void stage1_function(tflite::Interpreter* interpreter) {
         std::string label = "Stage1 " + std::to_string(intermediate_tensor.index);
         util::timer_start(label);
 
-        /* Access the 0th input tensor of sub-model 0 
+        /* Access the 0th input tensor of the interpreter
         *  and copy the contents of intermediate_tensor.data into it */
         // Hint: std::memcpy(destination_ptr, source_ptr, num_bytes);
         // ======= Write your code here =======
