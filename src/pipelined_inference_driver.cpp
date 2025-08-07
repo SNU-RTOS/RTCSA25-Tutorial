@@ -172,8 +172,10 @@ void stage2_function(tflite::Interpreter* interpreter,
             std::cout << "\n[stage2] Top-3 prediction for image index " << intermediate_tensor.index << ":\n";
             for (int idx : top_k_indices)
             {
-                std::string label = class_labels_map.count(idx) ? class_labels_map[idx] : "unknown";
-                std::cout << "- Class " << idx << " (" << label << "): " << probs[idx] << std::endl;
+                std::string label = 
+                    class_labels_map.count(idx) ? class_labels_map[idx] : "unknown";
+                std::cout << "- Class " << idx << " (" << label << "): " 
+                    << probs[idx] << std::endl;
             }
         }
 
