@@ -138,10 +138,10 @@ void stage2_function(tflite::Interpreter* interpreter,
         util::timer_start(label);
 
         /* Copy each sub-tensor from intermediate_tensor.data into 
-        *  the corresponding model input tensor */
+        *  the corresponding input tensors */
         // ======= Let's write together =======
         for (size_t i = 0; i < interpreter->inputs().size(); ++i) {
-            // Get i-th input tensor of sub-model 1
+            // Get i-th input tensor from the interpreter
             float* input_data = interpreter->typed_input_tensor<float>(i);
 
             // Copy data from intermediate tensor to i-th input tensor
