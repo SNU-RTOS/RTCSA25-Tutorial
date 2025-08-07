@@ -291,9 +291,9 @@ int main(int argc, char* argv[]) {
 
     /* Create and launch threads */
     // Hint: std::thread thread_name(function name, arguments...);
-    // 1. Launch stage0_function thread which takes images and input_period_ms
-    // 2. Launch stage1_function thread which takes submodel0 interpreter
-    // 3. Launch stage2_function thread which takes submodel1 interpreter and class_labels_map
+    // 1. Launch stage0_function in a new thread with images and input_period_ms
+    // 2. Launch stage1_function in a new thread with submodel0 interpreter
+    // 3. Launch stage2_function in a new thread with submodel1 interpreter and class_labels_map
     // ======= Write your code here =======
     std::thread stage0_thread(stage0_function, images, input_period_ms);
     std::thread stage1_thread(stage1_function, submodel0_interpreter.get());
