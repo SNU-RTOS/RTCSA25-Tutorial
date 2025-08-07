@@ -24,10 +24,10 @@
 int main(int argc, char *argv[])
 {
     /* Receive user input */
-    if (argc < 5)
+    if (argc < 4)
     {
         std::cerr << "Usage: " << argv[0] 
-                << "<model_path> <gpu_usage> <class_labels_path> <image_path> " // mandatory arguments
+                << "<model_path> <gpu_usage> <class_labels_path>" // mandatory arguments
                 << std::endl;
         return 1;
     }
@@ -43,8 +43,6 @@ int main(int argc, char *argv[])
     // Load class label mapping, used for postprocessing
     const std::string class_labels_path = argv[3];
     auto class_labels_map = util::load_class_labels(class_labels_path.c_str());
-
-    const std::string image_path = argv[4];
 
     /* Load .tflite model */
     std::unique_ptr<tflite::FlatBufferModel> _litert_model = tflite::FlatBufferModel::BuildFromFile(model_path.c_str());
@@ -102,30 +100,15 @@ int main(int argc, char *argv[])
     }
     instrumentation::inspect_tensors(_litert_interpreter.get(), "After Allocate Tensors");
 
-    /* Load input image */
-    cv::Mat image = cv::imread(image_path);
-    if (image.empty())
-        throw std::runtime_error("Failed to load image: " + image_path);
-
     /* Preprocessing */
-    // Preprocess input data
-    cv::Mat preprocessed_image = 
-            util::preprocess_image_resnet(image, 224, 224); // Input tensor shape: [3, 224, 224]
-
-    // Copy preprocessed_image to input_tensor
-    float* _litert_input_tensor = _litert_interpreter->typed_input_tensor<float>(0);
-    std::memcpy(_litert_input_tensor, preprocessed_image.ptr<float>(), preprocessed_image.total() * preprocessed_image.elemSize());
+    // We skip the actual preprocessing step here, as it is not the focus of this code
 
     /* Inference */
-    if (_litert_interpreter->Invoke() != kTfLiteOk)
-    {
-        std::cerr << "Failed to invoke interpreter" << std::endl;
-        return 1;
-    }
+    // We skip the actual inference step here, as it is not the focus of this code
     instrumentation::inspect_inference(_litert_interpreter.get());
 
     /* PostProcessing */
-    // No postprocessing for this example
+    // We skip the actual postprocessing step here, as it is not the focus of this code
 
     return 0;
 }
