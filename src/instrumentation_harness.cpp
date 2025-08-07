@@ -24,10 +24,10 @@
 int main(int argc, char *argv[])
 {
     /* Receive user input */
-    if (argc < 4)
+    if (argc < 3)
     {
         std::cerr << "Usage: " << argv[0] 
-                << "<model_path> <gpu_usage> <class_labels_path>" // mandatory arguments
+                << "<model_path> <gpu_usage>" // mandatory arguments
                 << std::endl;
         return 1;
     }
@@ -39,10 +39,6 @@ int main(int argc, char *argv[])
     if(gpu_usage_str == "true"){
         gpu_usage = true;
     }
-    
-    // Load class label mapping, used for postprocessing
-    const std::string class_labels_path = argv[3];
-    auto class_labels_map = util::load_class_labels(class_labels_path.c_str());
 
     /* Load .tflite model */
     std::unique_ptr<tflite::FlatBufferModel> _litert_model = tflite::FlatBufferModel::BuildFromFile(model_path.c_str());
