@@ -197,14 +197,14 @@ int main(int argc, char* argv[]) {
     }
 
     const std::string submodel0_path = argv[1];  // Path to sub-model 0
-    bool submodel0_gpu_usage = false; // If true, GPU delegate is applied
+    bool submodel0_gpu_usage = false;
     const std::string gpu_usage_str1 = argv[2];
     if(gpu_usage_str1 == "true"){
         submodel0_gpu_usage = true;
     }
 
     const std::string submodel1_path = argv[3];  // Path to sub-model 1
-    bool submodel1_gpu_usage = false; // If true, GPU delegate is applied
+    bool submodel1_gpu_usage = false;
     const std::string gpu_usage_str2 = argv[4];
     if(gpu_usage_str2 == "true"){
         submodel1_gpu_usage = true;
