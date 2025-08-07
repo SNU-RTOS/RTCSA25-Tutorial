@@ -73,7 +73,7 @@ void stage0_function(const std::vector<std::string>& images, int input_period_ms
 
     // Notify stage1_thread that no more data will be sent
     stage0_to_stage1_queue.signal_shutdown();
-}
+} // end of stage0_function
 
 void stage1_function(tflite::Interpreter* interpreter) {
     IntermediateTensor intermediate_tensor;
@@ -127,7 +127,7 @@ void stage1_function(tflite::Interpreter* interpreter) {
 
     // Notify stage2_thread that no more data will be sent
     stage1_to_stage2_queue.signal_shutdown();
-}
+} // end of stage1_function
 
 void stage2_function(tflite::Interpreter* interpreter, std::unordered_map<int, std::string> class_labels_map) {
     IntermediateTensor intermediate_tensor;
@@ -178,7 +178,7 @@ void stage2_function(tflite::Interpreter* interpreter, std::unordered_map<int, s
 
         util::timer_stop(label);
     } // end of while loop
-}
+} // end of stage2_function
 
 int main(int argc, char* argv[]) {
     /* Receive user input */
