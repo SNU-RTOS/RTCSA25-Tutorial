@@ -1,6 +1,6 @@
 // inference driver internals
 #include <iostream>
-#include "instrumentation_utils.hpp"
+#include "instrumentation_harness_utils.hpp"
 
 namespace instrumentation {
 /* Load .tflite Model */

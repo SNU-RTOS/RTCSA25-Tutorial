@@ -34,7 +34,7 @@ LIBS := -Llib
 # ==============================
 COMMON_SRCS := util.cpp
 INFERENCE_DRIVER_SRCS := inference_driver.cpp $(COMMON_SRCS)
-INST_HARNESS_SRCS := instrumentation_harness.cpp instrumentation_utils.cpp $(COMMON_SRCS)
+INST_HARNESS_SRCS := instrumentation_harness.cpp instrumentation_harness_utils.cpp $(COMMON_SRCS)
 PIPELINED_DRIVER_SRCS := pipelined_inference_driver.cpp $(COMMON_SRCS)
 
 # Map sources to objects

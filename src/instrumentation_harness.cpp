@@ -8,7 +8,7 @@
 #include "tflite/kernels/register.h"
 #include "tflite/model_builder.h"
 #include "util.hpp"
-#include "instrumentation_utils.hpp"
+#include "instrumentation_harness_utils.hpp"
 
 /* ================= Variable Naming Convention =================
 * Variables that start with a prefix _litert_ 
