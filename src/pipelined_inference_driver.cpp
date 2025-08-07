@@ -58,14 +58,14 @@ void stage0_function(const std::vector<std::string>& images, int input_period_ms
         intermediate_tensor.tensor_boundaries = {static_cast<int>(intermediate_tensor.data.size())};
         // ====================================
         stage0_to_stage1_queue.push(std::move(intermediate_tensor));
-
+        ++idx;
+        
         util::timer_stop(label);
 
         // Sleep to control the input rate
         // If next_wakeup_time is in the past, it will not sleep
         next_wakeup_time += std::chrono::milliseconds(input_period_ms);
         std::this_thread::sleep_until(next_wakeup_time);
-        ++idx;
     } while (idx < images.size());
 
     // Notify stage1_thread that no more data will be sent
