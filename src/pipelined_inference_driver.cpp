@@ -129,7 +129,8 @@ void stage1_function(tflite::Interpreter* interpreter) {
     stage1_to_stage2_queue.signal_shutdown();
 } // end of stage1_function
 
-void stage2_function(tflite::Interpreter* interpreter, std::unordered_map<int, std::string> class_labels_map) {
+void stage2_function(tflite::Interpreter* interpreter, 
+    std::unordered_map<int, std::string> class_labels_map) {
     IntermediateTensor intermediate_tensor;
 
     while (stage1_to_stage2_queue.pop(intermediate_tensor)) {
