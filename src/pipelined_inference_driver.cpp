@@ -26,15 +26,15 @@ InterStageQueue<IntermediateTensor> stage1_to_stage2_queue;
 
 void stage0_function(const std::vector<std::string>& images, int input_period_ms) {
     auto next_wakeup_time = std::chrono::high_resolution_clock::now();
-    size_t count = 0;
+    size_t idx = 0;
     do {
-        std::string label = "Stage0 " + std::to_string(count);
+        std::string label = "Stage0 " + std::to_string(idx);
         util::timer_start(label);
         /* Preprocessing */
         // Load image
-        cv::Mat image = cv::imread(images[count]);
+        cv::Mat image = cv::imread(images[idx]);
         if (image.empty()) {
-            std::cerr << "[Stage0] Failed to load image: " << images[count] << "\n";
+            std::cerr << "[Stage0] Failed to load image: " << images[idx] << "\n";
             util::timer_stop(label);
             continue;
         }
@@ -42,7 +42,7 @@ void stage0_function(const std::vector<std::string>& images, int input_period_ms
         // Preprocess image
         cv::Mat preprocessed_image = util::preprocess_image_resnet(image, 224, 224);
         if (preprocessed_image.empty()) {
-            std::cerr << "[Stage0] Preprocessing failed: " << images[count] << "\n";
+            std::cerr << "[Stage0] Preprocessing failed: " << images[idx] << "\n";
             util::timer_stop(label);
             continue;
         }
@@ -51,7 +51,7 @@ void stage0_function(const std::vector<std::string>& images, int input_period_ms
         *  and move it into stage0_to_stage1_queue */
         IntermediateTensor intermediate_tensor;
         // ======= Write your code here =======
-        intermediate_tensor.index = count;
+        intermediate_tensor.index = idx;
         intermediate_tensor.data.resize(preprocessed_image.total() * preprocessed_image.channels());
         std::memcpy(intermediate_tensor.data.data(), preprocessed_image.ptr<float>(), 
             intermediate_tensor.data.size() * sizeof(float));
@@ -65,8 +65,8 @@ void stage0_function(const std::vector<std::string>& images, int input_period_ms
         // If next_wakeup_time is in the past, it will not sleep
         next_wakeup_time += std::chrono::milliseconds(input_period_ms);
         std::this_thread::sleep_until(next_wakeup_time);
-        ++count;
-    } while (count < images.size());
+        ++idx;
+    } while (idx < images.size());
 
     // Notify stage1_thread that no more data will be sent
     stage0_to_stage1_queue.signal_shutdown();
