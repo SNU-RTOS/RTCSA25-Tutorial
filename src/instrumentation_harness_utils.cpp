@@ -6,12 +6,13 @@ namespace instrumentation {
 /* Load .tflite Model */
 // Equivalent to "cat /proc/<process_id>/maps | grep tflite"
 void inspect_model_loading() {
-    std::cout << "\n==== Model Loading ====" << std::endl;
     pid_t pid = getpid();
     std::stringstream cmd;
     cmd << "cat /proc/" << pid << "/maps | grep tflite";
     std::array<char, 256> buffer;
     std::string result;
+
+    std::cout << "cat /proc/" << pid << "/maps | grep tflite" << std::endl;
 
     FILE* pipe = popen(cmd.str().c_str(), "r");
     if (!pipe) {
@@ -32,21 +33,22 @@ void inspect_model_loading() {
 void inspect_interpreter_instantiation(const tflite::FlatBufferModel* model,
                                     const tflite::ops::builtin::BuiltinOpResolver& resolver,
                                     const tflite::Interpreter* interpreter) {
-    std::cout << "\n==== Interpreter Instantiation ====" << std::endl;
     // 1. Model Validation
     // Get the root object of the FlatBuffer model.
     // This provides access to the serialized model data
     // (e.g., subgraphs, tensors, operators)
     const tflite::Model* model_root = model->GetModel();
-    std::cout << "\nStep 1: Model Validation" << std::endl;
     std::cout << "\nSchema version of the model: " << model_root->version() 
     << "\nSupported schema version: " << TFLITE_SCHEMA_VERSION << std::endl;
+    if(model_root->version() != TFLITE_SCHEMA_VERSION) {
+        std::cerr << "Unsupported Schema Version" << std::endl;
+        exit(1);
+    }
 
     std::cout << "Press Enter to continue...";
     std::cin.get();  // Wait for Enter
 
     // 2. Operator mapping
-    std::cout << "\nStep 2: Operator Mapping" << std::endl;
     const auto* op_codes = model_root->operator_codes(); // It is a vector of tflite::OperatorCode
     std::cout << "\nTotal " << op_codes->size() << " operators in the model" << std::endl;
 
@@ -59,14 +61,16 @@ void inspect_interpreter_instantiation(const tflite::FlatBufferModel* model,
         
         std::cout << "[" << i << "] " << op_name << ", version: " << op_version 
         << ", supported (Y/N): " << (reg ? "Y" : "N") << std::endl;
+        if(!reg) {
+            std::cerr << "Unsupported opertor exists in the model file" << std::endl;
+            exit(1);
+        }
     }
     std::cout << "Press Enter to continue...";
     std::cin.get();  // Wait for Enter
 
     // 3. Internal data instantiation
-    std::cout << "\nStep 3: Internal Data Instantiation" << std::endl;
     // 3-1. Extracts subgraph information from the model
-    std::cout << "\nStep 3-1: Subgraph Extraction" << std::endl;
     const auto* subGraphs = model_root->subgraphs();
     std::cout << "\nNumber of subgraphs: " << subGraphs->size() << std::endl;
     std::cout << "Press Enter to continue...";
@@ -81,7 +85,6 @@ void inspect_interpreter_instantiation(const tflite::FlatBufferModel* model,
         // The space for subgraphs are reserved in the interpreter
 
         // 3-2. Parse tensor information from the buffer information in the SubGraph
-        std::cout << "\nStep 3-2: Tensor Extraction" << std::endl;
         // verifies the information and sets tensor variables for a subgraph
         const auto* buffers = model_root->buffers(); // Global raw data about weights, bias, and others, shared across subgraphs
         const auto* tensors = subGraph->tensors(); // Tensor data structure that contains shape, type, pointer to a buffer. Not shared across subgraphs
@@ -94,7 +97,6 @@ void inspect_interpreter_instantiation(const tflite::FlatBufferModel* model,
 
             std::string name = tensor->name() ? tensor->name()->str() : "(unnamed)";
             std::string type = tflite::EnumNameTensorType(tensor->type());
-
 
             std::cout << "Tensor [" << i << "] " << name
                     << ", type = " << type
@@ -114,18 +116,17 @@ void inspect_interpreter_instantiation(const tflite::FlatBufferModel* model,
             if (buffer && buffer->data() && buffer->data()->size() > 0) {
                 std::cout << " (has data, size = " << buffer->data()->size() << ")";
             } else {
-                std::cout << " (no data)";
+                std::cout << " (empty)";
             }
             std::cout << std::endl;
 
-            // When a tensor is valid the it is saved in the subgraph's tensor variables
+            // When a tensor is valid then it is saved in the subgraph's tensor variables
             // If any of the tensors is invalid, an error is raised
         }
         std::cout << "Press Enter to continue...";
         std::cin.get();  // Wait for Enter
 
         // 3-3. Parses node information in the SubGraph, which is a vector of node indices in execution order
-        std::cout << "\nStep 3-3: Node Extraction" << std::endl;
         const auto* operators = subGraph->operators(); // A vector that contains the operators of the subgraph in execution order
         std::cout << "\nTotal " << operators->size() << " operators in SubGraph [" << i << "]" << std::endl;
         for(int i = 0; i < operators->size(); i++) {
@@ -168,7 +169,6 @@ void inspect_interpreter_instantiation(const tflite::FlatBufferModel* model,
 }
 
 void inspect_interpreter(const tflite::Interpreter* interpreter) {
-    std::cout << "\n==== Interpreter Inspection ====" << std::endl;
     // Now let's check the interpreter, if it is correctly instantiated as we saw through the above code
     std::cout << "\nNumber of subgraphs: " << interpreter->subgraphs_size() << std::endl;
     std::cout << "Number of nodes of subgraph 0: " << interpreter->nodes_size() << std::endl; // Internally returns only the value of subgraph 0
@@ -195,7 +195,6 @@ void inspect_interpreter(const tflite::Interpreter* interpreter) {
 /* Apply Delegate */
 std::unordered_set<int> used_tensor_indices; // for tensor allocation during allocate tensors
 void inspect_interpreter_with_delegate(const tflite::Interpreter* interpreter) {
-    std::cout << "\n==== Inspect Interpreter with Delegate ====" << std::endl;
     std::cout << "\nNumber of nodes of subgraph 0: " << interpreter->nodes_size() << std::endl;
     for(int node_index = 0; node_index < interpreter->nodes_size(); node_index++) {
         const auto* node_and_reg = interpreter->node_and_registration(node_index);
@@ -280,7 +279,7 @@ void inspect_tensors(tflite::Interpreter* interpreter, const std::string& stage)
         }
     };
 
-    std::cout << "\n==== " << stage << " (used tensors only) ====" << std::endl;
+    std::cout << "\n==== " << stage << " ====" << std::endl;
     for (size_t i = 0; i < interpreter->tensors_size(); i++) {
         if (!used_tensor_indices.count(i)) continue;  // Skip unused tensors
         TfLiteTensor* tensor = interpreter->tensor(i);
@@ -309,7 +308,6 @@ void inspect_tensors(tflite::Interpreter* interpreter, const std::string& stage)
 
 /* Invoke */
 void inspect_inference(const tflite::Interpreter* interpreter) {
-    std::cout << "==== Invoke ====" << std::endl;
     const auto& plan = interpreter->execution_plan();
     for (size_t i = 0; i < plan.size(); i++) {
         int node_index = plan[i];
