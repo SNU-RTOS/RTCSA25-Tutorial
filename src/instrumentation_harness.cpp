@@ -24,10 +24,10 @@
 int main(int argc, char *argv[])
 {
     /* Receive user input */
-    if (argc < 3)
+    if (argc < 2)
     {
         std::cerr << "Usage: " << argv[0] 
-                << "<model_path> <gpu_usage>" // mandatory arguments
+                << "<model_path>" // mandatory arguments
                 << std::endl;
         return 1;
     }
@@ -35,9 +35,11 @@ int main(int argc, char *argv[])
     const std::string model_path = argv[1];
 
     bool gpu_usage = false; // If true, GPU delegate is applied
-    const std::string gpu_usage_str = argv[2];
-    if(gpu_usage_str == "true"){
-        gpu_usage = true;
+    if(argc == 3) {
+        const std::string gpu_usage_str = argv[2];
+        if(gpu_usage_str == "true"){
+            gpu_usage = true;
+        }
     }
 
     /* Load .tflite model */
