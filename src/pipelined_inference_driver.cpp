@@ -96,8 +96,7 @@ void stage1_function(tflite::Interpreter* interpreter) {
         interpreter->Invoke();
         // ====================================
 
-        /* Get output tensors of sub-model 0,
-        *  copy them to an intermediate tensor,
+        /* Get output tensors of sub-model 0, copy them to an intermediate tensor,
         *  and push it into the stage1_to_stage2_queue */
         // Clear data in it for reuse
         intermediate_tensor.data.clear();
