@@ -96,8 +96,8 @@ void stage1_function(tflite::Interpreter* interpreter) {
         interpreter->Invoke();
         // ====================================
 
-        /* Get output tensors of the interpreter, copy them to an intermediate tensor,
-        *  and push it into the stage1_to_stage2_queue */
+        /* Get output tensors of the interpreter 
+        *  and copy them to an intermediate tensor */
         // Clear data in it for reuse
         intermediate_tensor.data.clear();
         intermediate_tensor.tensor_boundaries.clear();
@@ -111,6 +111,7 @@ void stage1_function(tflite::Interpreter* interpreter) {
             for (int d = 0; d < output_tensor->dims->size; ++d)
                 size *= output_tensor->dims->data[d];
 
+            // Resize intermediate_tensor.data and copy output tensor data into it
             int current_boundary = intermediate_tensor.data.size();
             intermediate_tensor.data.resize(current_boundary + size);
             std::memcpy(intermediate_tensor.data.data() + current_boundary,
