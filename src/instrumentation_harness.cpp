@@ -27,7 +27,7 @@ int main(int argc, char *argv[])
     if (argc < 2)
     {
         std::cerr << "Usage: " << argv[0] 
-                << "<model_path>" // mandatory arguments
+                << "<model_path> [gpu_usage]" // mandatory arguments
                 << std::endl;
         return 1;
     }
