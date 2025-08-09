@@ -15,13 +15,13 @@
 #-----------------------------------------------------------------------------------------------
 
 # Activate the .ws_pip virtual environment
-if [ -f ".ws_pip/bin/activate" ]; then
-    source .ws_pip/bin/activate
-    echo "[INFO] Activated Python virtual environment: .ws_pip"
-else
-    echo "[ERROR] .ws_pip environment exists but activation script is missing"
-    exit 1
-fi
+# if [ -f ".ws_pip/bin/activate" ]; then
+#     source .ws_pip/bin/activate
+#     echo "[INFO] Activated Python virtual environment: .ws_pip"
+# else
+#     echo "[ERROR] .ws_pip environment exists but activation script is missing"
+#     exit 1
+# fi
 
 
 ########## Generate .env ##########
@@ -54,7 +54,7 @@ echo "[INFO] Working in: $(pwd)"
 ## Clone LiteRT
 echo "[INFO] Installing LiteRT"
 if [ ! -d "${LITERT_PATH}" ]; then
-    git clone https://github.com/Seunmul/LiteRT.git "${LITERT_PATH}"
+    git clone https://github.com/Seunmul/LiteRT.git "${LITERT_PATH}"  --depth 1
     cd "${LITERT_PATH}"
     ./configure
 else
