@@ -7,27 +7,22 @@
 # @Affiliation: Real-Time Operating System Laboratory, Seoul National University
 # @Created: 07/23/25
 # @Original Work: Based on minimal-litert-c repository (https://github.com/SNU-RTOS/minimal-litert-c)
-# @Modified by: Taehyun Kim and Namcheol Lee on 08/06/25
+# @Modified by: GeonhaPark on 08/10/25
 # @Contact: {nclee,ghpark,thkim}@redwood.snu.ac.kr
 #
 # @Description: Setup script for RTCSA25 tutorial
 #
 #-----------------------------------------------------------------------------------------------
 
-# Activate the .venv virtual environment
-# if [ -f ".venv/bin/activate" ]; then
-#     source .venv/bin/activate
-#     echo "[INFO] Activated Python virtual environment: .venv"
-# else
-#     echo "[ERROR] .venv environment exists but activation script is missing"
-#     exit 1
-# fi
-
-
 ########## Generate .env ##########
-ROOT_PATH=$(pwd)
-EXTERNAL_PATH=${ROOT_PATH}/external
-LITERT_PATH=${EXTERNAL_PATH}/litert
+if [ -f ".env" ]; then
+    echo "[INFO] .env file already exists, skipping generation..."
+else
+    echo "[INFO] Generating .env file..."
+
+    ROOT_PATH=$(pwd)
+    EXTERNAL_PATH=${ROOT_PATH}/external
+    LITERT_PATH=${EXTERNAL_PATH}/litert
 
 cat <<EOF > .env
 ROOT_PATH=${ROOT_PATH}
@@ -35,7 +30,8 @@ EXTERNAL_PATH=${EXTERNAL_PATH}
 LITERT_PATH=${LITERT_PATH}
 EOF
 
-echo "[INFO] .env file generated at $(pwd)/.env"
+    echo "[INFO] .env file generated at $(pwd)/.env"
+fi
 
 # shellcheck source=/dev/null
 source .env
@@ -83,7 +79,7 @@ pip install netron
 
 cd ..
 # download ResNet50
-python model_downloader.py
+python3 model_downloader.py
 
 # convert resnet50.h5 to resnet50.tflie
-python model_h5_to_tflite.py
+python3 model_h5_to_tflite.py

@@ -7,15 +7,20 @@
 # @Affiliation: Real-Time Operating System Laboratory, Seoul National University
 # @Created: 07/23/25
 # @Original Work: Based on minimal-litert-c repository (https://github.com/SNU-RTOS/minimal-litert-c)
-# @Modified by: Taehyun Kim and Namcheol Lee on 08/06/25
+# @Modified by: GeonhaPark on 08/10/25
 # @Contact: {nclee,ghpark,thkim}@redwood.snu.ac.kr
 #
 # @Description: LiteRT GPU delegate build script for RTCSA25 tutorial
 #
 #-----------------------------------------------------------------------------------------------
 
-cd ..
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd ${SCRIPT_DIR}/..
+
 source .env
+
+# ── Build Configuration ───────────────────────────────────────────────────────
+
 GPU_DELEGATE_LIB_PATH=${LITERT_PATH}/bazel-bin/tflite/delegates/gpu/libtensorflowlite_gpu_delegate.so
 
 ########## Build ##########
