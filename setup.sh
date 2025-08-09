@@ -14,12 +14,12 @@
 #
 #-----------------------------------------------------------------------------------------------
 
-# Activate the .ws_pip virtual environment
-# if [ -f ".ws_pip/bin/activate" ]; then
-#     source .ws_pip/bin/activate
-#     echo "[INFO] Activated Python virtual environment: .ws_pip"
+# Activate the .venv virtual environment
+# if [ -f ".venv/bin/activate" ]; then
+#     source .venv/bin/activate
+#     echo "[INFO] Activated Python virtual environment: .venv"
 # else
-#     echo "[ERROR] .ws_pip environment exists but activation script is missing"
+#     echo "[ERROR] .venv environment exists but activation script is missing"
 #     exit 1
 # fi
 
@@ -75,7 +75,7 @@ echo "[INFO] Installing system packages..."
 sudo apt install -y libopencv-dev libjsoncpp-dev
 
 # install python packages into virtual environment
-echo "[INFO] Installing Python packages into .ws_pip..."
+echo "[INFO] Installing Python packages into .venv..."
 pip install tensorflow==2.12.0
 
 ######### Download ResNet50 ##########
