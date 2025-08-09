@@ -5,7 +5,6 @@
  * @Affiliation: Real-Time Operating System Laboratory, Seoul National University
  * @Created: 07/23/25
  * @Original Work: Based on DNNPipe repository (https://github.com/SNU-RTOS/DNNPipe)
- * @Modified by: Namcheol Lee on 08/06/25
  * @Contact: nclee@redwood.snu.ac.kr
  *
  * @Description: Pipelined Inference driver codes
