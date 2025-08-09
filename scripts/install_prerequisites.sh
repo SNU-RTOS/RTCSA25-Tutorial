@@ -42,7 +42,6 @@ sudo apt install -y --no-install-recommends \
     llvm libncursesw5-dev xz-utils libxml2-dev \
     libxmlsec1-dev 
 
-
 # install Pyenv
 curl -fsSL https://pyenv.run | bash
 

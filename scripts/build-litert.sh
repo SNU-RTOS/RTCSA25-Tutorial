@@ -7,13 +7,17 @@
 # @Affiliation: Real-Time Operating System Laboratory, Seoul National University
 # @Created: 07/23/25
 # @Original Work: Based on minimal-litert-c repository (https://github.com/SNU-RTOS/minimal-litert-c)
-# @Modified by: Taehyun Kim and Namcheol Lee on 08/06/25
+# @Modified by: GeonhaPark on 08/10/25
 # @Contact: {nclee,ghpark,thkim}@redwood.snu.ac.kr
 #
 # @Description: LiteRT build script for RTCSA25 tutorial
 #
-# ──────────────────────────────────────────────────────────────────────────────
-cd ..
+#-----------------------------------------------------------------------------------------------
+
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd ${SCRIPT_DIR}/..
+
 source .env
 
 # ── Build Configuration ───────────────────────────────────────────────────────
@@ -37,7 +41,6 @@ pwd
 bazel build -c opt //tflite:tensorflowlite \
     --copt=-Os \
     --copt=-fPIC \
-    --copt=-Wno-incompatible-pointer-types \
     --linkopt=-s
 
 ########## Make symlink ##########
