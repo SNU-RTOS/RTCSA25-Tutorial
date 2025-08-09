@@ -67,7 +67,8 @@ python3 -m venv ${VENV_ROOT}
 echo "[INFO] Created virtual environment at ${VENV_ROOT}"
 
 source ${VENV_ROOT}/bin/activate
-echo "source ${VENV_ROOT}/bin/activate" >> ~/.bashrc
+echo "export VENV_ROOT=\"${VENV_ROOT}\"" >> ~/.bashrc
+echo "source \$VENV_ROOT/bin/activate" >> ~/.bashrc
 echo "[INFO] Virtual environment at ${VENV_ROOT} is activated"
 
 # install bazelisk and bazel
