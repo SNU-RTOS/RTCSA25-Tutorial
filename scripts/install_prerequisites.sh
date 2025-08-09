@@ -14,7 +14,6 @@
 #
 #-----------------------------------------------------------------------------------------------
 
-
 # install dev prerequisites
 sudo apt install -y \
     git \
@@ -57,16 +56,30 @@ source ~/.bashrc
 pyenv install 3.10.16
 pyenv global 3.10.16
 
-# create python virtual environment
-python3 -m venv .venv
-source .venv/bin/activate
-ROOT=$(pwd)
-echo "source ${ROOT}/.venv/bin/activate" >> ~/.bashrc
+# create python virtual environment by using venv
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd ${SCRIPT_DIR}/..
+PROJECT_ROOT=$(pwd)
+echo "[INFO] Project root is ${PROJECT_ROOT}"
+
+VENV_ROOT="${PROJECT_ROOT}/.venv"
+python3 -m venv ${VENV_ROOT}
+echo "[INFO] Created virtual environment at ${VENV_ROOT}"
+
+source ${VENV_ROOT}/bin/activate
+echo "source ${VENV_ROOT}/bin/activate" >> ~/.bashrc
+echo "[INFO] Virtual environment at ${VENV_ROOT} is activated"
 
 # install bazelisk and bazel
-sudo curl -L https://github.com/bazelbuild/bazelisk/releases/latest/download/bazelisk-linux-arm64 -o /usr/local/bin/bazelisk
-sudo chmod +x /usr/local/bin/bazelisk
-sudo ln -s /usr/local/bin/bazelisk /usr/bin/bazel
+if [ ! -f /usr/bin/bazel ]; then
+    sudo curl -L https://github.com/bazelbuild/bazelisk/releases/latest/download/bazelisk-linux-arm64 -o /usr/local/bin/bazelisk
+    sudo chmod +x /usr/local/bin/bazelisk
+    sudo ln -s /usr/local/bin/bazelisk /usr/bin/bazel
+else
+    echo "[INFO] Bazel already exists, skipping symlink creation..."
+fi
+
+# add env variable HERMETIC_PYTHON_VERSION to fix python during build LiteRT
 echo 'export HERMETIC_PYTHON_VERSION=3.10' >> ~/.bashrc
 
 source ~/.bashrc
