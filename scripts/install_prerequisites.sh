@@ -7,7 +7,7 @@
 # @Affiliation: Real-Time Operating System Laboratory, Seoul National University
 # @Created: 07/23/25
 # @Original Work: Based on minimal-litert-c repository (https://github.com/SNU-RTOS/minimal-litert-c)
-# @Modified by: Taehyun Kim and Namcheol Lee on 08/06/25
+# @Modified by: GeonhaPark on 08/10/25
 # @Contact: {nclee,ghpark,thkim}@redwood.snu.ac.kr
 #
 # @Description: Install script for RTCSA25 tutorial prerequisites
@@ -27,7 +27,7 @@ sudo apt install -y \
     unzip \
     pkg-config
 
-# Install pyenv prerequisites
+# install pyenv prerequisites
 sudo apt install -y --no-install-recommends \
     libssl-dev \
     zlib1g-dev \
@@ -69,7 +69,7 @@ echo "[INFO] Created virtual environment at ${VENV_ROOT}"
 source ${VENV_ROOT}/bin/activate
 echo "export VENV_ROOT=\"${VENV_ROOT}\"" >> ~/.bashrc
 echo "source \$VENV_ROOT/bin/activate" >> ~/.bashrc
-echo "[INFO] Virtual environment at ${VENV_ROOT} is activated"
+echo "[INFO] Activated virtual environment: ${VENV_ROOT}"
 
 # install bazelisk and bazel
 if [ ! -f /usr/bin/bazel ]; then
@@ -80,7 +80,7 @@ else
     echo "[INFO] Bazel already exists, skipping symlink creation..."
 fi
 
-# add env variable HERMETIC_PYTHON_VERSION to fix python during build LiteRT
+# add environment variable HERMETIC_PYTHON_VERSION to fix python during build LiteRT
 echo 'export HERMETIC_PYTHON_VERSION=3.10' >> ~/.bashrc
 
 source ~/.bashrc
