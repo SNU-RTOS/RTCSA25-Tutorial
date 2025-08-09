@@ -58,9 +58,10 @@ pyenv install 3.10.16
 pyenv global 3.10.16
 
 # create python virtual environment
-python3 -m venv .ws_pip
-source .ws_pip/bin/activate
-echo 'source $(pwd)/.ws_pip/bin/activate' >> ~/.bashrc
+python3 -m venv .venv
+source .venv/bin/activate
+ROOT=$(pwd)
+echo "source ${ROOT}/.venv/bin/activate" >> ~/.bashrc
 
 # install bazelisk and bazel
 sudo curl -L https://github.com/bazelbuild/bazelisk/releases/latest/download/bazelisk-linux-arm64 -o /usr/local/bin/bazelisk
