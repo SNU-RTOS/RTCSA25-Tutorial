@@ -60,12 +60,12 @@ pyenv global 3.10.16
 # create python virtual environment
 python3 -m venv .ws_pip
 source .ws_pip/bin/activate
-echo 'source $(pwd)/.ws_pip/bin/activate' >> ~/.zshrc
+echo 'source $(pwd)/.ws_pip/bin/activate' >> ~/.bashrc
 
 # install bazelisk and bazel
 sudo curl -L https://github.com/bazelbuild/bazelisk/releases/latest/download/bazelisk-linux-arm64 -o /usr/local/bin/bazelisk
 sudo chmod +x /usr/local/bin/bazelisk
 sudo ln -s /usr/local/bin/bazelisk /usr/bin/bazel
-echo 'export HERMETIC_PYTHON_VERSION=3.10' >> ~/.zshrc
+echo 'export HERMETIC_PYTHON_VERSION=3.10' >> ~/.bashrc
 
 source ~/.bashrc
