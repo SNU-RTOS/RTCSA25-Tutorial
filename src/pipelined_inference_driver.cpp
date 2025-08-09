@@ -1,15 +1,15 @@
 /*
  * Filename: pipelined_inference_driver.cpp
  *
- * @Author: Woobean Seo
+ * @Author: Namcheol Lee
  * @Affiliation: Real-Time Operating System Laboratory, Seoul National University
  * @Created: 07/23/25
  * @Original Work: Based on DNNPipe repository (https://github.com/SNU-RTOS/DNNPipe)
  * @Modified by: Namcheol Lee on 08/06/25
- * @Contact: {nclee,thkim}@redwood.snu.ac.kr
+ * @Contact: nclee@redwood.snu.ac.kr
  *
- * @Description: Pipeleined Inference driver codes
- * 
+ * @Description: Pipelined Inference driver codes
+ *
  */
 
 #include <iostream>
@@ -37,6 +37,7 @@
 // stage1_to_stage2_queue: from stage1 to stage2
 InterStageQueue<IntermediateTensor> stage0_to_stage1_queue;
 InterStageQueue<IntermediateTensor> stage1_to_stage2_queue;
+InterStageQueue<IntermediateTensor> stage2_to_stage3_queue;
 
 void stage0_function(const std::vector<std::string>& images, int input_period_ms) {
     auto next_wakeup_time = std::chrono::high_resolution_clock::now();
@@ -143,8 +144,7 @@ void stage1_function(tflite::Interpreter* interpreter) {
     stage1_to_stage2_queue.signal_shutdown();
 } // end of stage1_function
 
-void stage2_function(tflite::Interpreter* interpreter, 
-    std::unordered_map<int, std::string> class_labels_map) {
+void stage2_function(tflite::Interpreter* interpreter) {
     IntermediateTensor intermediate_tensor;
 
     while (stage1_to_stage2_queue.pop(intermediate_tensor)) {
@@ -174,29 +174,47 @@ void stage2_function(tflite::Interpreter* interpreter,
         /* Postprocessing */
         /* Access the 0th output tensor */
         // ======= Write your code here =======
-        float *output_tensor = interpreter->typed_output_tensor<float>(0);
+        TfLiteTensor* output_tensor = interpreter->output_tensor(0);
+        size_t size = 1;
+        for(int d = 0; d < output_tensor->dims->size; ++d) {
+            size *= output_tensor->dims->data[d];
+        }
+        intermediate_tensor.data.resize(size);
+        std::memcpy(intermediate_tensor.data.data(), output_tensor->data.f,
+                    sizeof(float)*size);
+        stage2_to_stage3_queue.push(std::move(intermediate_tensor));
         // ====================================
-        int num_classes = 1000;
-        std::vector<float> probs(num_classes);
-        std::memcpy(probs.data(), output_tensor, sizeof(float) * num_classes);
+        util::timer_stop(label);
+    } // end of while loop
 
-        // Print top-3 predictions every 10 iterations
-        if((intermediate_tensor.index+1) % 10 == 0) {
+    stage2_to_stage3_queue.signal_shutdown();    
+} // end of stage2_function
+
+void stage3_function(std::unordered_map<int, std::string> class_labels_map) {
+    IntermediateTensor intermediate_tensor;
+
+    while (stage2_to_stage3_queue.pop(intermediate_tensor)) {
+        std::string tlabel = "Stage3 " + std::to_string(intermediate_tensor.index);
+        util::timer_start(tlabel);
+
+        const std::vector<float>& probs = intermediate_tensor.data;
+
+        if ((intermediate_tensor.index + 1) % 10 == 0) {
             auto top_k_indices = util::get_topK_indices(probs, 3);
-            std::cout << "\n[stage2] Top-3 prediction for image index " 
-                << intermediate_tensor.index << ":\n";
-            for (int idx : top_k_indices)
-            {
-                std::string label = 
-                    class_labels_map.count(idx) ? class_labels_map[idx] : "unknown";
-                std::cout << "- Class " << idx << " (" << label << "): " 
-                    << probs[idx] << std::endl;
+            std::cout << "\n[stage3] Top-3 prediction for image index "
+                      << intermediate_tensor.index << ":\n";
+            for (int idx : top_k_indices) {
+                std::string label = class_labels_map.count(idx)
+                    ? class_labels_map.at(idx)
+                    : "unknown";
+                std::cout << "- Class " << idx << " (" << label
+                          << "): " << probs[idx] << std::endl;
             }
         }
 
-        util::timer_stop(label);
-    } // end of while loop
-} // end of stage2_function
+        util::timer_stop(tlabel);
+    }
+}
 
 int main(int argc, char* argv[]) {
     /* Receive user input */
@@ -307,11 +325,13 @@ int main(int argc, char* argv[]) {
     // Hint: std::thread thread_name(function name, arguments...);
     // 1. Launch stage0_function in a new thread with images and input_period_ms
     // 2. Launch stage1_function in a new thread with submodel0 interpreter
-    // 3. Launch stage2_function in a new thread with submodel1 interpreter and class_labels_map
+    // 3. Launch stage2_function in a new thread with submodel1 interpreter
+    // 4. Launch stage3_function in a new thread with class_labels_map
     // ======= Write your code here =======
     std::thread stage0_thread(stage0_function, images, input_period_ms);
     std::thread stage1_thread(stage1_function, submodel0_interpreter.get());
-    std::thread stage2_thread(stage2_function, submodel1_interpreter.get(), class_labels_map);
+    std::thread stage2_thread(stage2_function, submodel1_interpreter.get());
+    std::thread stage3_thread(stage3_function, class_labels_map);
     // ====================================
 
     /* Wait for threads to finish */  
@@ -320,6 +340,7 @@ int main(int argc, char* argv[]) {
     stage0_thread.join();
     stage1_thread.join();
     stage2_thread.join();
+    stage3_thread.join();
     // ====================================
 
     util::timer_stop("Total Latency");
@@ -328,6 +349,7 @@ int main(int argc, char* argv[]) {
     util::print_average_latency("Stage0");
     util::print_average_latency("Stage1");
     util::print_average_latency("Stage2");
+    util::print_average_latency("Stage3");
     util::print_throughput("Total Latency", images.size());
 
     return 0;
