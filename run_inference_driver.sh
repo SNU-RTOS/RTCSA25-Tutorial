@@ -1,4 +1,17 @@
 #!/bin/bash
+
+#-----------------------------------------------------------------------------------------------
+# Filename: run_inference_driver.sh
+#
+# @Author: Namcheol Lee
+# @Affiliation: Real-Time Operating System Laboratory, Seoul National University
+# @Created: 07/23/25
+# @Contact: {ghpark,thkim,nclee}@redwood.snu.ac.kr
+#
+# @Description: Script to run inference driver for RTCSA25 tutorial
+# 
+#-----------------------------------------------------------------------------------------------
+
 set -e  # Exit if any command fails
 
 # --------- CONFIGURATION ---------

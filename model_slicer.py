@@ -1,13 +1,19 @@
+#!/usr/bin/env python
+#  -*- coding: utf-8 -*-
 """
 Filename: model_slicer.py
 
 @Author: Woobean Seo
 @Affiliation: Real-Time Operating System Laboratory, Seoul National University
+@Created: 07/23/25
+@Original Work: Based on DNNPipe repository (https://github.com/SNU-RTOS/DNNPipe)
 @Modified by: Taehyun Kim on 08/06/25
 @Contact: thkim@redwood.snu.ac.kr
 
 @Description: Model slicer for RTCSA25 tutorial
+
 """
+
 import tensorflow as tf
 import numpy as np
 import os

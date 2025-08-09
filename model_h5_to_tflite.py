@@ -1,3 +1,17 @@
+#!/usr/bin/env python
+#  -*- coding: utf-8 -*-
+"""
+Filename: model_h5_to_tflite.py
+
+@Author: Taehyun Kim
+@Created: 07/23/25
+@Affiliation: Real-Time Operating System Laboratory, Seoul National University
+@Contact: thkim@redwood.snu.ac.kr
+
+@Description: Convert .h5 Keras model to .tflite format
+
+"""
+
 import tensorflow as tf
 import argparse
 import os

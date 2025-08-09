@@ -1,9 +1,11 @@
+#!/usr/bin/env python
+#  -*- coding: utf-8 -*-
 """
 Filename: model_downloader.py
 
 @Author: Taehyun Kim
+@Created: 07/23/25
 @Affiliation: Real-Time Operating System Laboratory, Seoul National University
-@Modified by: Taehyun Kim on 07/22/25
 @Contact: thkim@redwood.snu.ac.kr
 
 @Description: Model downloader for RTCSA25 tutorial

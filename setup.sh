@@ -1,5 +1,19 @@
 #!/bin/bash
 
+#-----------------------------------------------------------------------------------------------
+# Filename: setup.sh
+#
+# @Author: GeonhaPark
+# @Affiliation: Real-Time Operating System Laboratory, Seoul National University
+# @Created: 07/23/25
+# @Original Work: Based on minimal-litert-c repository (https://github.com/SNU-RTOS/minimal-litert-c)
+# @Modified by: Taehyun Kim and Namcheol Lee on 08/06/25
+# @Contact: {nclee,ghpark,thkim}@redwood.snu.ac.kr
+#
+# @Description: Setup script for RTCSA25 tutorial
+#
+#-----------------------------------------------------------------------------------------------
+
 # Activate the .ws_pip virtual environment
 if [ -f ".ws_pip/bin/activate" ]; then
     source .ws_pip/bin/activate

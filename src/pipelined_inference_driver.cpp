@@ -1,3 +1,17 @@
+/*
+ * Filename: pipelined_inference_driver.cpp
+ *
+ * @Author: Woobean Seo
+ * @Affiliation: Real-Time Operating System Laboratory, Seoul National University
+ * @Created: 07/23/25
+ * @Original Work: Based on DNNPipe repository (https://github.com/SNU-RTOS/DNNPipe)
+ * @Modified by: Namcheol Lee on 08/06/25
+ * @Contact: {nclee,thkim}@redwood.snu.ac.kr
+ *
+ * @Description: Pipeleined Inference driver codes
+ * 
+ */
+
 #include <iostream>
 #include <thread>
 #include <vector>

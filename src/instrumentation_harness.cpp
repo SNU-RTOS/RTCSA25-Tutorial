@@ -1,3 +1,15 @@
+/*
+ * Filename: instrumentation_harness.cpp
+ *
+ * @Author: Namcheol Lee
+ * @Affiliation: Real-Time Operating System Laboratory, Seoul National University
+ * @Created: 07/27/25
+ * @Contact: nclee@redwood.snu.ac.kr
+ *
+ * @Description: Inference driver internals
+ * 
+ */
+
 #include <iostream>
 #include <vector>
 #include <opencv2/opencv.hpp>

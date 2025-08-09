@@ -1,5 +1,20 @@
 #!/bin/bash
 
+#-----------------------------------------------------------------------------------------------
+# Filename: install_prerequisites.sh
+#
+# @Author: GeonhaPark
+# @Affiliation: Real-Time Operating System Laboratory, Seoul National University
+# @Created: 07/23/25
+# @Original Work: Based on minimal-litert-c repository (https://github.com/SNU-RTOS/minimal-litert-c)
+# @Modified by: Taehyun Kim and Namcheol Lee on 08/06/25
+# @Contact: {nclee,ghpark,thkim}@redwood.snu.ac.kr
+#
+# @Description: Install script for RTCSA25 tutorial prerequisites
+#
+#-----------------------------------------------------------------------------------------------
+
+
 # install dev prerequisites
 sudo apt install -y \
     git \

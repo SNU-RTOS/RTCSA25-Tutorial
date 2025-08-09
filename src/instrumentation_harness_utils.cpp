@@ -1,4 +1,15 @@
-// inference driver internals
+/*
+ * Filename: instrumentation_harness_utils.cpp
+ *
+ * @Author: Namcheol Lee
+ * @Affiliation: Real-Time Operating System Laboratory, Seoul National University
+ * @Created: 07/28/25
+ * @Contact: nclee@redwood.snu.ac.kr
+ *
+ * @Description: Inference driver internals
+ * 
+ */
+
 #include <iostream>
 #include "instrumentation_harness_utils.hpp"
 

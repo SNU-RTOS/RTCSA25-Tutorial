@@ -1,5 +1,17 @@
 #!/bin/bash
 
+#-----------------------------------------------------------------------------------------------
+# Filename: build-litert.sh
+#
+# @Author: GeonhaPark
+# @Affiliation: Real-Time Operating System Laboratory, Seoul National University
+# @Created: 07/23/25
+# @Original Work: Based on minimal-litert-c repository (https://github.com/SNU-RTOS/minimal-litert-c)
+# @Modified by: Taehyun Kim and Namcheol Lee on 08/06/25
+# @Contact: {nclee,ghpark,thkim}@redwood.snu.ac.kr
+#
+# @Description: LiteRT build script for RTCSA25 tutorial
+#
 # ──────────────────────────────────────────────────────────────────────────────
 cd ..
 source .env
