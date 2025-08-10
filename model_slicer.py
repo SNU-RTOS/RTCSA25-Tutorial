@@ -30,158 +30,131 @@ def DNNPartitioning(model, start, end, prev_outputs):
     """
     Parameters:
         model (tf.keras.Model): Full Keras model to be partitioned.
-        start (int): Index of the first layer in the partitioned submodel.
-        end (int): Index of the last layer (inclusive) in the partitioned submodel.
-        prev_outputs (dict): {layer name → output tensor} from the previous submodel stage.
+        start (int): Index of the first layer to include in the submodel.
+        end (int): Index of the layer immediately after the last layer in the submodel. (end-1) is the last layer included.
+        prev_outputs (dict): Mapping from layer name to its output tensor from the preceding submodel.
 
     Key data structures:
-        stage_inputs (dict): {layer name → tf.keras.Input tensor}, inputs to the current stage.
-        reused_tensors (dict): {layer name → tensor}, output tensors reused within the same stage (e.g., for skip connections).
-        cross_tensors (dict): {layer name → tensor}, output tensors needed as input for the next stage (cross-stage connection).
-        current_tensor (tensor or list of tensors): intermediate result tensor(s) propagated through current submodel.
-        stage_outputs (tensor or list of tensors): final output tensor(s) of the current submodel stage.
-
-    Mechanism:
-        - The DNNPartitioning function iteratively applies layers between the specified start and end indices to construct a submodel.
-        - It creates tf.keras.Input tensors from the previous stage’s outputs and maps them to the new computation graph of the current stage.
-        - Output tensors that are reused within the same stage are cached in reused_tensors, 
-          while those needed by the next stage are collected in cross_tensors to preserve skip connections and cross-stage dependencies.
+        submodel_inputs (dict): Tensors to the current submodel.
+        intra_submodel_skips (dict): Tensors reused within the same submodels (e.g., for skip connections).
+        inter_submodel_skips (dict): Tensors needed as input for the next submodels.
+        x (tensor or list of tensors): Intermediate tensor(s) propagated through current submodel.
     """
     
     # Initialize data structures
-    stage_inputs = {}        
-    reused_tensors = {}      
-    cross_tensors = {}      
-    
-    # Create tf.keras.Input tensors from previous stage outputs and store for intra-stage reuse.
-    for layer_name in prev_outputs.keys():
-        input_shape = prev_outputs[layer_name].shape[1:]
-        input_tensor = tf.keras.layers.Input(shape=input_shape, name=layer_name)
-        
-        # Initialize stage_inputs and reused_tensors
-        stage_inputs[layer_name] = input_tensor
-        reused_tensors[layer_name] = input_tensor
+    submodel_inputs = {}
+    intra_submodel_skips = {}
+    inter_submodel_skips = {}
 
-    # Determine how to initialize the first input tensor `current_tensor`
-    # Multiple stage inputs
-    if isinstance(model.layers[start].input, list): 
-        current_tensor = []
-        for stage_input in model.layers[start].input:
-            layer_name = stage_input.name.split('/')[0]
-            
-            # Initialize current_tensor and cross_tensors
-            current_tensor.append(stage_inputs[layer_name])
-            cross_tensors[layer_name] = stage_inputs[layer_name]
-    # Single stage input
-    else: 
-        if len(stage_inputs) == 1:
-            current_tensor = next(iter(stage_inputs.values()))
+    for inp in prev_outputs.keys():
+        input_shape =  prev_outputs[inp].shape[1:]
+        submodel_inputs[inp] = tf.keras.layers.Input(shape=input_shape, name=inp)
+
+    for submodel_input in submodel_inputs.keys():
+        intra_submodel_skips[submodel_input] = submodel_inputs[submodel_input]
+
+    # Initialize x
+    # Case 1: When model.layers[start] has multiple inputs
+    if isinstance(model.layers[start].input, list):
+        temp = []
+        for layer_start in model.layers[start].input:
+            temp.append(submodel_inputs[layer_start.name.split('/')[0]])
+            inter_submodel_skips[layer_start.name.split('/')[0]] = submodel_inputs[layer_start.name.split('/')[0]]
+        x = temp
+    # Case 2: When model.layers[start] has a single input
+    else:
+        if len(submodel_inputs) == 1:
+            x = next(iter(submodel_inputs.values())) 
         else:
-            layer_name = model.layers[start].input.name.split('/')[0]
-            current_tensor = stage_inputs[layer_name]
+            x = submodel_inputs[model.layers[start].input.name.split('/')[0]]
 
     # Iterate over layers in the specified range
     for i in range(start, end):
-        # Retrieve the inbound layers connected as inputs to the current layer
         layer = model.layers[i]
         inbound_node = layer._inbound_nodes[0]
         inbound_layers = inbound_node.inbound_layers
 
-        # Multiple inboune layers
+        # Multiple inbound layers
         if isinstance(inbound_layers, list) and len(inbound_layers) > 1:
-            for inbound_layer in inbound_layers:
-                source_layer = model.get_layer(inbound_layer.name)  
-                source_idx = model.layers.index(source_layer)
-                
-                # If inbound layer is not the immediately previous layer
-                if source_idx != i - 1:
-                    if source_layer.name in reused_tensors:
+            for inbound_layer in layer._inbound_nodes[0].inbound_layers:
+                origin_layer = model.get_layer(inbound_layer.name)
+                origin_idx = model.layers.index(origin_layer)
+                if origin_idx != i-1:
+                    if origin_layer.name in intra_submodel_skips.keys():
                         try:
-                            current_tensor = layer(current_tensor)
+                            x = layer(x)
                         except (ValueError, TypeError):
                             try:
-                                current_tensor = layer([current_tensor, reused_tensors[source_layer.name]])
+                                x = layer([x, intra_submodel_skips[origin_layer.name]])
                             except:
-                                current_tensor = layer(current_tensor, reused_tensors[source_layer.name])
-                    elif source_layer.name in stage_inputs:
-                        current_tensor = layer([current_tensor, stage_inputs[source_layer.name]])
+                                x = layer(x, intra_submodel_skips[origin_layer.name])
+                    elif origin_layer.name in inter_submodel_skips.keys():
+                        x = layer([x, inter_submodel_skips[origin_layer.name]])
                     else:
-                        current_tensor = layer(current_tensor)
+                        x = layer(x)
         # Single inbound layer
         else:
             try:
-                source_layer = model.get_layer(inbound_node.inbound_layers.name)
-                current_tensor = layer(reused_tensors[source_layer.name])
+                origin_layer = model.get_layer(layer._inbound_nodes[0].inbound_layers.name)
+                x = layer(intra_submodel_skips[origin_layer.name])
             except (TypeError, KeyError):
                 try:
-                    current_tensor = layer(current_tensor)
+                    x = layer(x)
                 except (TypeError, ValueError):
-                    current_tensor = layer(current_tensor[0])
+                    x = layer(x[0])
 
-        # For multiple outbound connections
-        if len(layer._outbound_nodes) > 1:
-            destination_idx = model.layers.index(layer._outbound_nodes[1].outbound_layer)
-            # If the output of the layer is used again within the current stage
-            if destination_idx < end:
-                reused_tensors[layer.name] = current_tensor
-            # If the output of the layer is needed in the next stage
+        # Multiple outbound connections
+        if len(layer._outbound_nodes)>1:
+            dest_idx = model.layers.index(layer._outbound_nodes[1].outbound_layer)
+            if dest_idx < end:
+                intra_submodel_skips[layer.name] = x
             else:
-                cross_tensors[layer.name] = current_tensor
-        # For single outbound connection        
-        else:    
-            if i != len(model.layers) - 1:
-                destination_idx = model.layers.index(layer._outbound_nodes[0].outbound_layer)
-                # If the output is not used by the immediately next layer
-                if destination_idx != i + 1:
-                    # If the output is reused later within the current stage
-                    if destination_idx < end:
-                        reused_tensors[layer.name] = current_tensor
-                    # If the output is needed by a later stage
+                inter_submodel_skips[layer.name] = x
+        # Single outbound connection
+        else:
+            if i != len(model.layers)-1:
+                dest_idx = model.layers.index(layer._outbound_nodes[0].outbound_layer)
+                if dest_idx != i+1:
+                    if dest_idx < end:
+                        intra_submodel_skips[layer.name] = x
                     else:
-                        cross_tensors[layer.name] = current_tensor
+                        inter_submodel_skips[layer.name] = x
 
-    # Construct submodel
-    # If there are additional outputs needed for the next stage (e.g., skip connections)
-    stage_outputs = current_tensor
-    if cross_tensors:
-        stage_outputs = [current_tensor] + list(cross_tensors.values())
-    # If the current stage produces only a single output tensor
+    # If there are outputs needed for the next submodel (e.g., skip connections)
+    if inter_submodel_skips:
+        x=[x]+list(inter_submodel_skips.values())
     else:
         try:
-            stage_outputs = list(current_tensor)[0]
+            x = list(x)[0]
         except TypeError:
             pass
 
     # Create and return the submodel
-    submodel = tf.keras.models.Model(inputs=list(stage_inputs.values()), outputs=stage_outputs)
+    submodel = tf.keras.models.Model(inputs=list(submodel_inputs.values()), outputs=x)
     return submodel
 
-# Function to create a sample input tensor for the model
-def create_sample_input(shape=(1, 224, 224, 3)):
+# Function to create a dummy input tensor for the model
+def create_dummy_input(shape=(1, 224, 224, 3)):
     return np.random.rand(*shape)
 
-# Prepare inputs for the next stage based on the outputs of the current submodel
-def prepare_next_stage_inputs(sub_model, stage_outputs):
+# Prepare inputs for the next submodel based on the outputs of the current submodel
+def prepare_next_submodel_inputs(sub_model, submodel_outputs):
     next_inputs = {}
-    for model_output, actual_output in zip(sub_model.outputs, stage_outputs):
+    for model_output, actual_output in zip(sub_model.outputs, submodel_outputs):
         layer_name = model_output._keras_history[0].name
         next_inputs[layer_name] = actual_output
     return next_inputs
 
 # Save the sliced submodel as a TFLite model
-def save_models(output_dir, model_name, sub_model, stage_num, coral=False, single_stage=False):
+def save_models(output_dir, model_name, sub_model, submodel_num):
+    # Convert the sliced submodel to TFLite format
     converter = tf.lite.TFLiteConverter.from_keras_model(sub_model)
     tflite_model = converter.convert()
 
+    # Save the TFLite model to the specified output directory
     os.makedirs(output_dir, exist_ok=True)
-
-    if single_stage:
-        filename = f"{model_name}.tflite"
-    else:
-        filename = f"sub_model_{stage_num}.tflite"
-
+    filename = f"sub_model_{submodel_num}.tflite"
     tflite_path = os.path.join(output_dir, filename)
-
     with open(tflite_path, 'wb') as f:
         f.write(tflite_model)
     print(f"Saved sliced tflite model to: {tflite_path}")
@@ -190,8 +163,8 @@ def save_models(output_dir, model_name, sub_model, stage_num, coral=False, singl
 
 # Function to parse command line arguments
 def parse_arguments():
-    parser = argparse.ArgumentParser(description='Pipeline Stage')
-    parser.add_argument('--model-path', type=str, required=True, help='Path to sourceal h5 model')
+    parser = argparse.ArgumentParser(description='Pipeline submodel')
+    parser.add_argument('--model-path', type=str, required=True, help='Path to original h5 model')
     parser.add_argument('--output-dir', type=str, default='./models')
     return parser.parse_args()
 
@@ -239,7 +212,7 @@ def main():
     # Parse command line arguments
     args = parse_arguments()
 
-    # Load the model from the given path without compiling (for inference/slicing only)
+    # Load the model from the given path without compiliation (for inference/slicing only)
     model = load_model(args.model_path, compile=False)
     model_file = os.path.basename(args.model_path)
     model_name = os.path.splitext(model_file)[0]
@@ -251,28 +224,27 @@ def main():
     n, partitioning_points = get_slicing_points_from_user(num_layers)
 
     # Create a sample dummy input tensor for the first submodel
-    sample_input = create_sample_input()
-    num_stages = len(partitioning_points) - 1
+    sample_input = create_dummy_input()
+    num_submodels = len(partitioning_points) - 1
 
     # Lists to store intermediate submodels and their corresponding TFLite models
     sub_models = []
     tflite_models = []
 
-    # Perform slicing and model conversion per stage
-    for i in range(num_stages):
-        # Prepare inputs for current stage: either dummy input or previous stage's output
+    # Perform slicing and model conversion per submodel
+    for i in range(num_submodels):
+        # Prepare inputs for current submodel: either dummy input or previous submodel's output
         if i == 0:
-            stage_inputs = {model.layers[0].name: sample_input}
+            submodel_inputs = {model.layers[0].name: sample_input}
         else:
-            stage_inputs = prepare_next_stage_inputs(sub_models[i-1], sub_models[i-1].outputs)
+            submodel_inputs = prepare_next_submodel_inputs(sub_models[i-1], sub_models[i-1].outputs)
 
         # Slice the model using DNNPartitioning
-        sub_model = DNNPartitioning(model, partitioning_points[i], partitioning_points[i+1], stage_inputs)
+        sub_model = DNNPartitioning(model, partitioning_points[i], partitioning_points[i+1], submodel_inputs)
         sub_models.append(sub_model)
 
         # Convert and save the sliced submodel to TFLite
-        single_stage = (n == 1)
-        tflite_models.append(save_models(args.output_dir, model_name, sub_model, i, single_stage=single_stage))
+        tflite_models.append(save_models(args.output_dir, model_name, sub_model, i))
 
         
 if __name__ == "__main__":
