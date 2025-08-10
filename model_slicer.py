@@ -7,7 +7,7 @@ Filename: model_slicer.py
 @Affiliation: Real-Time Operating System Laboratory, Seoul National University
 @Created: 07/23/25
 @Original Work: Based on DNNPipe repository (https://github.com/SNU-RTOS/DNNPipe)
-@Modified by: Taehyun Kim on 08/06/25
+@Modified by: Taehyun Kim on 08/11/25
 @Contact: thkim@redwood.snu.ac.kr
 
 @Description: Model slicer for RTCSA25 tutorial
@@ -25,7 +25,7 @@ import absl.logging
 absl.logging.set_verbosity(absl.logging.ERROR)
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
-# Function to partition a Keras model into submodels based on specified layer indices
+# Function to partition a model into submodels based on specified layer indices
 def DNNPartitioning(model, start, end, prev_outputs):
     """
     Parameters:
@@ -35,10 +35,10 @@ def DNNPartitioning(model, start, end, prev_outputs):
         prev_outputs (dict): Mapping from layer name to its output tensor from the preceding submodel.
 
     Key data structures:
-        submodel_inputs (dict): Tensors to the current submodel.
+        submodel_inputs (dict): Tensors from the previous submodel, which are inputs.
         intra_submodel_skips (dict): Tensors reused within the same submodels (e.g., for skip connections).
         inter_submodel_skips (dict): Tensors needed as input for the next submodels.
-        x (tensor or list of tensors): Intermediate tensor(s) propagated through current submodel.
+        x (tensor or list of tensors): Intermediate tensor(s) passed through operations.
     """
     
     # Initialize data structures
@@ -54,14 +54,15 @@ def DNNPartitioning(model, start, end, prev_outputs):
         intra_submodel_skips[submodel_input] = submodel_inputs[submodel_input]
 
     # Initialize x
-    # Case 1: When model.layers[start] has multiple inputs
+    # When model.layers[start] has multiple inputs
     if isinstance(model.layers[start].input, list):
         temp = []
         for layer_start in model.layers[start].input:
             temp.append(submodel_inputs[layer_start.name.split('/')[0]])
-            inter_submodel_skips[layer_start.name.split('/')[0]] = submodel_inputs[layer_start.name.split('/')[0]]
+            inter_submodel_skips[layer_start.name.split('/')[0]] \
+                    = submodel_inputs[layer_start.name.split('/')[0]]
         x = temp
-    # Case 2: When model.layers[start] has a single input
+    # When model.layers[start] has a single input
     else:
         if len(submodel_inputs) == 1:
             x = next(iter(submodel_inputs.values())) 
@@ -205,7 +206,7 @@ def get_slicing_points_from_user(num_layers):
     else:
         print(f"Slicing ranges: {slice_ranges}")
     
-    return n, partitioning_points
+    return partitioning_points
 
 
 def main():
@@ -217,35 +218,33 @@ def main():
     model_file = os.path.basename(args.model_path)
     model_name = os.path.splitext(model_file)[0]
     
-    # Get total number of layers in the model
-    num_layers = len(model.layers)
-
     # Ask the user how many submodels they want to split into
-    n, partitioning_points = get_slicing_points_from_user(num_layers)
-
-    # Create a sample dummy input tensor for the first submodel
-    sample_input = create_dummy_input()
+    num_layers = len(model.layers)
+    partitioning_points = get_slicing_points_from_user(num_layers)
     num_submodels = len(partitioning_points) - 1
 
-    # Lists to store intermediate submodels and their corresponding TFLite models
-    sub_models = []
-    tflite_models = []
+    # Create a sample dummy input tensor for the first submodel
+    dummy_input = create_dummy_input()
 
     # Perform slicing and model conversion per submodel
+    sub_models = []
+    tflite_models = []
     for i in range(num_submodels):
         # Prepare inputs for current submodel: either dummy input or previous submodel's output
         if i == 0:
-            submodel_inputs = {model.layers[0].name: sample_input}
+            submodel_inputs = {model.layers[0].name: dummy_input}
         else:
             submodel_inputs = prepare_next_submodel_inputs(sub_models[i-1], sub_models[i-1].outputs)
 
         # Slice the model using DNNPartitioning
-        sub_model = DNNPartitioning(model, partitioning_points[i], partitioning_points[i+1], submodel_inputs)
+        sub_model = DNNPartitioning(model, 
+                                    partitioning_points[i], 
+                                    partitioning_points[i+1], 
+                                    submodel_inputs)
         sub_models.append(sub_model)
 
-        # Convert and save the sliced submodel to TFLite
+        # Convert and save the sliced submodel to TFLite format
         tflite_models.append(save_models(args.output_dir, model_name, sub_model, i))
 
-        
 if __name__ == "__main__":
     main()
