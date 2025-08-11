@@ -37,7 +37,7 @@ InterStageQueue<IntermediateTensor> stage0_to_stage1_queue;
 InterStageQueue<IntermediateTensor> stage1_to_stage2_queue;
 InterStageQueue<IntermediateTensor> stage2_to_stage3_queue;
 
-void stage0_function(const std::vector<std::string>& images, int input_period_ms) {
+void stage0_thread_function(const std::vector<std::string>& images, int input_period_ms) {
     auto next_wakeup_time = std::chrono::high_resolution_clock::now();
     size_t idx = 0;
     do {
@@ -86,9 +86,9 @@ void stage0_function(const std::vector<std::string>& images, int input_period_ms
 
     // Notify stage1_thread that no more data will be sent
     stage0_to_stage1_queue.signal_shutdown();
-} // end of stage0_function
+} // end of stage0_thread_function
 
-void stage1_function(tflite::Interpreter* interpreter) {
+void stage1_thread_function(tflite::Interpreter* interpreter) {
     IntermediateTensor intermediate_tensor;
 
     while (stage0_to_stage1_queue.pop(intermediate_tensor)) {
@@ -140,9 +140,9 @@ void stage1_function(tflite::Interpreter* interpreter) {
 
     // Notify stage2_thread that no more data will be sent
     stage1_to_stage2_queue.signal_shutdown();
-} // end of stage1_function
+} // end of stage1_thread_function
 
-void stage2_function(tflite::Interpreter* interpreter) {
+void stage2_thread_function(tflite::Interpreter* interpreter) {
     IntermediateTensor intermediate_tensor;
 
     while (stage1_to_stage2_queue.pop(intermediate_tensor)) {
@@ -186,9 +186,9 @@ void stage2_function(tflite::Interpreter* interpreter) {
     } // end of while loop
 
     stage2_to_stage3_queue.signal_shutdown();    
-} // end of stage2_function
+} // end of stage2_thread_function
 
-void stage3_function(std::unordered_map<int, std::string> class_labels_map) {
+void stage3_thread_function(std::unordered_map<int, std::string> class_labels_map) {
     IntermediateTensor intermediate_tensor;
 
     while (stage2_to_stage3_queue.pop(intermediate_tensor)) {
@@ -212,7 +212,7 @@ void stage3_function(std::unordered_map<int, std::string> class_labels_map) {
 
         util::timer_stop(tlabel);
     }
-}
+} // end of stage3_thread_function
 
 int main(int argc, char* argv[]) {
     /* Receive user input */
@@ -321,15 +321,15 @@ int main(int argc, char* argv[]) {
 
     /* Create and launch threads */
     // Hint: std::thread thread_name(function name, arguments...);
-    // 1. Launch stage0_function in a new thread with images and input_period_ms
-    // 2. Launch stage1_function in a new thread with submodel0 interpreter
-    // 3. Launch stage2_function in a new thread with submodel1 interpreter
-    // 4. Launch stage3_function in a new thread with class_labels_map
+    // 1. Launch stage0_thread_function in a new thread with images and input_period_ms
+    // 2. Launch stage1_thread_function in a new thread with submodel0 interpreter
+    // 3. Launch stage2_thread_function in a new thread with submodel1 interpreter
+    // 4. Launch stage3_thread_function in a new thread with class_labels_map
     // ======= Write your code here =======
-    std::thread stage0_thread(stage0_function, images, input_period_ms);
-    std::thread stage1_thread(stage1_function, submodel0_interpreter.get());
-    std::thread stage2_thread(stage2_function, submodel1_interpreter.get());
-    std::thread stage3_thread(stage3_function, class_labels_map);
+    std::thread stage0_thread(stage0_thread_function, images, input_period_ms);
+    std::thread stage1_thread(stage1_thread_function, submodel0_interpreter.get());
+    std::thread stage2_thread(stage2_thread_function, submodel1_interpreter.get());
+    std::thread stage3_thread(stage3_thread_function, class_labels_map);
     // ====================================
 
     // Setting CPU affinity for each thread
