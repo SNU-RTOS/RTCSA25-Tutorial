@@ -339,13 +339,10 @@ int main(int argc, char* argv[]) {
     util::set_cpu_affinity(stage3_thread, 6); // Stage 3 on CPU core 6
 
     /* Wait for threads to finish */  
-    // Hint: thread_name.join();
-    // ======= Write your code here =======
     stage0_thread.join();
     stage1_thread.join();
     stage2_thread.join();
     stage3_thread.join();
-    // ====================================
 
     util::timer_stop("Total Latency");
 
