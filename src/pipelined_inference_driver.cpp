@@ -222,7 +222,7 @@ void stage3_thread_function(std::unordered_map<int, std::string> class_labels_ma
         }
 
         util::timer_stop(tlabel);
-    }
+    } // end of while loop
 } // end of stage3_thread_function
 
 int main(int argc, char* argv[]) {
