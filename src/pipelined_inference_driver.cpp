@@ -169,8 +169,7 @@ void stage2_thread_function(tflite::Interpreter* interpreter) {
         interpreter->Invoke();
         // ====================================
 
-        /* Extract output tensors and
-         * copy them into the intermediate tensor */
+        /* Extract output tensors and copy them into an intermediate tensor */
         // Clear data in it for reuse
         intermediate_tensor.data.clear();
         intermediate_tensor.tensor_boundaries.clear();
