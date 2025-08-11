@@ -27,6 +27,9 @@
 #include <queue>
 #include <mutex>
 #include <condition_variable>
+#include <sched.h>
+#include <thread>
+#include <pthread.h>
 
 #include <jsoncpp/json/json.h>
 #include <opencv2/opencv.hpp> //opencv
@@ -164,6 +167,11 @@ namespace util
     void print_top_predictions(const std::vector<float> &probs, int num_classes, 
                                 int top_k, bool show_softmax, 
                                 const std::unordered_map<int, std::string> &label_map);
+
+    //*==========================================*/
+
+    void set_cpu_affinity(std::thread& th, int core_id);
+
 } // namespace util
 
 #endif // _UTIL_H_

@@ -26,14 +26,13 @@
 /* Pipelined Inference Driver
  * This driver demonstrates a pipelined inference workflow using two submodels.
  * There are three stages:
- * 1. Stage 0: Preprocess input on CPU
- * 2. Stage 1: Run inference for sub-model 0 on CPU
- * 3. Stage 2: Run inference for sub-model 1 on GPU and 
-               postprocess output on CPU. */
+ * 1. Stage 0: Preprocess input on CPU core 
+ * 2. Stage 1: Run inference for sub-model 0 on CPU core 
+ * 3. Stage 2: Run inference for sub-model 1 on GPU                
+ * 4. Stage 3: Postprocess output on CPU core  */
 
 // === Queues for inter-stage communication ===
-// stage0_to_stage1_queue: from stage0 to stage1
-// stage1_to_stage2_queue: from stage1 to stage2
+// stageX_to_stageY_queue: from stageX to stageY
 InterStageQueue<IntermediateTensor> stage0_to_stage1_queue;
 InterStageQueue<IntermediateTensor> stage1_to_stage2_queue;
 InterStageQueue<IntermediateTensor> stage2_to_stage3_queue;
@@ -332,6 +331,12 @@ int main(int argc, char* argv[]) {
     std::thread stage2_thread(stage2_function, submodel1_interpreter.get());
     std::thread stage3_thread(stage3_function, class_labels_map);
     // ====================================
+
+    // Setting CPU affinity for each thread
+    util::set_cpu_affinity(stage0_thread, 4); // Stage 0 on CPU core 4
+    util::set_cpu_affinity(stage1_thread, 7); // Stage 1 on CPU core 7
+    util::set_cpu_affinity(stage2_thread, 5); // Stage 2 on CPU core 5
+    util::set_cpu_affinity(stage3_thread, 6); // Stage 3 on CPU core 6
 
     /* Wait for threads to finish */  
     // Hint: thread_name.join();

@@ -365,3 +365,15 @@ void util::print_top_predictions(const std::vector<float> &probs,
 }
 
 //*==========================================*/
+
+void util::set_cpu_affinity(std::thread& th, int core_id) {
+    cpu_set_t cpuset;
+    CPU_ZERO(&cpuset);
+    CPU_SET(core_id, &cpuset);
+
+    pthread_t native_handle = th.native_handle();
+    int rc = pthread_setaffinity_np(native_handle, sizeof(cpu_set_t), &cpuset);
+    if (rc != 0) {
+        std::cerr << "Error calling pthread_setaffinity_np: " << rc << "\n";
+    }
+}
