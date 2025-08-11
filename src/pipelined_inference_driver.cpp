@@ -169,8 +169,8 @@ void stage2_thread_function(tflite::Interpreter* interpreter) {
         interpreter->Invoke();
         // ====================================
 
-        /* Extract the 0th output tensor, copy it into the intermediate tensor, 
-         * and push it into stage2_to_stage3_queue */
+        /* Extract the 0th output tensor and
+         * copy it into the intermediate tensor */
         // ======= Write your code here =======
         TfLiteTensor* output_tensor = interpreter->output_tensor(0);
         size_t size = 1;
@@ -180,8 +180,8 @@ void stage2_thread_function(tflite::Interpreter* interpreter) {
         intermediate_tensor.data.resize(size);
         std::memcpy(intermediate_tensor.data.data(), output_tensor->data.f,
                     sizeof(float)*size);
-        stage2_to_stage3_queue.push(std::move(intermediate_tensor));
         // ====================================
+        stage2_to_stage3_queue.push(std::move(intermediate_tensor));
         util::timer_stop(label);
     } // end of while loop
 
