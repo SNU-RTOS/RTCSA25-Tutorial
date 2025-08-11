@@ -169,17 +169,29 @@ void stage2_thread_function(tflite::Interpreter* interpreter) {
         interpreter->Invoke();
         // ====================================
 
-        /* Extract the 0th output tensor and
-         * copy it into the intermediate tensor */
-        // ======= Write your code here =======
-        TfLiteTensor* output_tensor = interpreter->output_tensor(0);
-        size_t size = 1;
-        for(int d = 0; d < output_tensor->dims->size; ++d) {
-            size *= output_tensor->dims->data[d];
-        }
-        intermediate_tensor.data.resize(size);
-        std::memcpy(intermediate_tensor.data.data(), output_tensor->data.f,
-                    sizeof(float)*size);
+        /* Extract output tensors and
+         * copy them into the intermediate tensor */
+        // Clear data in it for reuse
+        intermediate_tensor.data.clear();
+        intermediate_tensor.tensor_boundaries.clear();
+        // ======= Let's write together =======
+        for (size_t i = 0; i < interpreter->outputs().size(); ++i) {
+            // Get i-th output tensor object
+            TfLiteTensor* output_tensor = interpreter->output_tensor(i);
+
+            // Calculate tensor size
+            int size = 1;
+            for (int d = 0; d < output_tensor->dims->size; ++d)
+                size *= output_tensor->dims->data[d];
+
+            // Resize intermediate_tensor.data and copy output tensor data into it
+            int current_boundary = intermediate_tensor.data.size();
+            intermediate_tensor.data.resize(current_boundary + size);
+            std::memcpy(intermediate_tensor.data.data() + current_boundary,
+                output_tensor->data.f,
+                size * sizeof(float));
+            intermediate_tensor.tensor_boundaries.push_back(current_boundary + size);
+        } // end of for loop
         // ====================================
         stage2_to_stage3_queue.push(std::move(intermediate_tensor));
         util::timer_stop(label);
