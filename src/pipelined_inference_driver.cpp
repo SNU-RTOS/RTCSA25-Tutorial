@@ -99,14 +99,14 @@ void stage1_thread_function(tflite::Interpreter* interpreter) {
         *  and copy the contents of intermediate_tensor.data into it */
         // Hint: std::memcpy(destination_ptr, source_ptr, num_bytes);
         // ======= Write your code here =======
-        float *input_tensor = interpreter->typed_input_tensor<float>(0);
-        std::memcpy(input_tensor, intermediate_tensor.data.data(), 
-            intermediate_tensor.data.size() * sizeof(float));
+        
+
+        
         // ====================================
 
         /* Inference */
         // ======= Write your code here =======
-        interpreter->Invoke();
+        
         // ====================================
 
         /* Get output tensors of the interpreter and copy them to an intermediate tensor */
@@ -116,7 +116,7 @@ void stage1_thread_function(tflite::Interpreter* interpreter) {
         // ======= Let's write together =======
         for (size_t i = 0; i < interpreter->outputs().size(); ++i) {
             // Get i-th output tensor object
-            TfLiteTensor* output_tensor = interpreter->output_tensor(i);
+            
 
             // Calculate tensor size
             int size = 1;
@@ -154,7 +154,7 @@ void stage2_thread_function(tflite::Interpreter* interpreter) {
         // ======= Let's write together =======
         for (size_t i = 0; i < interpreter->inputs().size(); ++i) {
             // Get i-th input tensor from the interpreter
-            float* input_data = interpreter->typed_input_tensor<float>(i);
+            
 
             // Copy data from intermediate tensor to i-th input tensor
             int start_idx = (i == 0) ? 0 : intermediate_tensor.tensor_boundaries[i-1];
@@ -166,7 +166,7 @@ void stage2_thread_function(tflite::Interpreter* interpreter) {
 
         /* Inference */
         // ======= Write your code here =======
-        interpreter->Invoke();
+        
         // ====================================
 
         /* Extract output tensors and copy them into an intermediate tensor */
@@ -176,7 +176,7 @@ void stage2_thread_function(tflite::Interpreter* interpreter) {
         // ======= Let's write together =======
         for (size_t i = 0; i < interpreter->outputs().size(); ++i) {
             // Get i-th output tensor object
-            TfLiteTensor* output_tensor = interpreter->output_tensor(i);
+            
 
             // Calculate tensor size
             int size = 1;
@@ -268,14 +268,14 @@ int main(int argc, char* argv[]) {
     /* Load models */
     // 1. Create a std::unique_ptr<tflite::FlatBufferModel> for each sub-model
     // ======= Write your code here =======
-    std::unique_ptr<tflite::FlatBufferModel> submodel0_model = 
-        tflite::FlatBufferModel::BuildFromFile(submodel0_path.c_str());
-    std::unique_ptr<tflite::FlatBufferModel> submodel1_model = 
-        tflite::FlatBufferModel::BuildFromFile(submodel1_path.c_str());
-    if (!submodel0_model || !submodel1_model) {
-        std::cerr << "Failed to load one or both models" << std::endl;
-        return 1;
-    }
+    // std::unique_ptr<tflite::FlatBufferModel>  = 
+    //     tflite::FlatBufferModel::BuildFromFile(?.c_str());
+    
+
+
+
+
+
     // ====================================
 
     /* Build interpreters */
@@ -283,17 +283,17 @@ int main(int argc, char* argv[]) {
     // 2. Create two interpreter builders, one for each sub-model
     // 3. Build interpreters using the interpreter builders
     // ======= Write your code here =======
-    tflite::ops::builtin::BuiltinOpResolver resolver;
-    tflite::InterpreterBuilder submodel0_builder(*submodel0_model, resolver);
-    tflite::InterpreterBuilder submodel1_builder(*submodel1_model, resolver);
-    std::unique_ptr<tflite::Interpreter> submodel0_interpreter;
-    std::unique_ptr<tflite::Interpreter> submodel1_interpreter;
-    submodel0_builder(&submodel0_interpreter);
-    submodel1_builder(&submodel1_interpreter);
-    if (!submodel0_interpreter || !submodel1_interpreter) {
-        std::cerr << "Failed to initialize interpreters" << std::endl;
-        return 1;
-    }
+    // tflite::ops::builtin::BuiltinOpResolver
+    // tflite::InterpreterBuilder
+    // std::unique_ptr<tflite::Interpreter>
+
+
+
+
+
+
+
+    
     // ====================================
 
     /* Apply delegate */
@@ -302,29 +302,29 @@ int main(int argc, char* argv[]) {
     // 3. Create a GPU delegate
     // 4. Apply the GPU delegate to the submodel1 interpreter
     // ======= Write your code here =======
-    TfLiteDelegate* xnn_delegate = TfLiteXNNPackDelegateCreate(nullptr);
-    if(submodel0_interpreter->ModifyGraphWithDelegate(xnn_delegate) != kTfLiteOk) {
-        std::cerr << "Failed to apply XNNPACK delegate to submodel0" << std::endl;
-        return 1;
-    }
-    TfLiteDelegate* gpu_delegate = TfLiteGpuDelegateV2Create(nullptr);
-    if(submodel1_interpreter->ModifyGraphWithDelegate(gpu_delegate) != kTfLiteOk) {
-        std::cerr << "Failed to apply GPU delegate to submodel1" << std::endl;
-        return 1;
-    }
+    // TfLiteDelegate* 
+    // TfLiteXNNPackDelegateCreate(nullptr);
+    // TfLiteGpuDelegateV2Create(nullptr);
+    // ModifyGraphWithDelegate(delegate);
+
+
+
+
+
+
     // ====================================
 
     /* Allocate tensors */
     // 1. Allocate tensors for both interpreters
     // ======= Write your code here =======
-    if (submodel0_interpreter->AllocateTensors() != kTfLiteOk) {
-        std::cerr << "Failed to allocate tensors for submodel0" << std::endl;
-        return 1;
-    }
-    if (submodel1_interpreter->AllocateTensors() != kTfLiteOk) {
-        std::cerr << "Failed to allocate tensors for submodel1" << std::endl;
-        return 1;
-    }
+    // AllocateTensors()
+
+
+
+
+
+
+
     // ====================================
 
     // Running pipelined inference driver
@@ -337,10 +337,10 @@ int main(int argc, char* argv[]) {
     // 3. Launch stage2_thread_function in a new thread with submodel1 interpreter
     // 4. Launch stage3_thread_function in a new thread with class_labels_map
     // ======= Write your code here =======
-    std::thread stage0_thread(stage0_thread_function, images, input_period_ms);
-    std::thread stage1_thread(stage1_thread_function, submodel0_interpreter.get());
-    std::thread stage2_thread(stage2_thread_function, submodel1_interpreter.get());
-    std::thread stage3_thread(stage3_thread_function, class_labels_map);
+    
+
+
+
     // ====================================
 
     // Setting CPU affinity for each thread
