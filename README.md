@@ -59,13 +59,13 @@ Run the prerequisite installation script at `~/RTCSA25-Tutorial/`:
 ```
 
 The setup script automatically:
-- Create and configure .env file with your paths
+- Creates and configures `.env` file with your paths
 - Clones the LiteRT repository
 - Configures the build environment
 - Builds the core LiteRT library
 - Builds GPU delegate library
 - Installs necessary python packages for downloading and slicing the model
-- Download resnet50.h5 and convert it into resnet50.tflite under ./models directory
+- Downloads `resnet50.h5` and converts it into `resnet50.tflite` under `./models` directory
 
 ## Source Code
 
@@ -89,32 +89,48 @@ Arguments:
 # Option 1: Run directly
 ./bin/inference_driver ./models/resnet50.tflite false class_labels.json ./images/_images_1.png
 
-# Option 2: Run via script (GPU, 500 inputs, input_period=0)
+# Option 2: Run via script (./models/resnet50.tflite, true, 500 inputs, input_period=0)
+# Runs the model on GPU
 ./run_inference_driver.sh
 ```
-
 #### Instrumentation Harness
+```bash
+# Build the instrumentation harness
+make instrumentation_harness -j4
+
+# Run the instrumentation harness
+./bin/instrumentation_harness <model_path> [gpu_usage]
+
+Arguments:
+  model_path  Path to .tflite model file
+  gpu_usage   (Optional) true/false to enable GPU delegate
+
+# Example
+./bin/instrumentation_harness ./models/resnet50.tflite
+```
+
+#### Pipelined Inference Driver
 ```bash
 # Build the pipelined inference driver
 make pipelined -j4
 
 # Run the pipelined inference driver
-./bin/pipelined_inference_driver <submodel0_path> <submodel0_gpu_usage> <submodel1_path> <submodel1_gpu_usage> <class_labels_path> <image1_path> [image2_path ... imageN_path] [input_period_ms]
+./bin/pipelined_inference_driver <submodel0_path> <submodel0_gpu_usage> <submodel1_path> <submodel1_gpu_usage> <class_labels> <image1_path> [image2_path ... imageN_path] [input_period_ms]
 
 Arguments:
-  submodel0_path     Path to first sliced submodel (.tflite)
+  submodel0_path      Path to first sliced submodel (.tflite)
   submodel0_gpu_usage true/false to enable GPU delegate for submodel 0
-  submodel1_path     Path to second sliced submodel (.tflite)
+  submodel1_path      Path to second sliced submodel (.tflite)
   submodel1_gpu_usage true/false to enable GPU delegate for submodel 1
-  class_labels_path  Path to JSON class labels file
-  image_path(s)      One or more image files for inference
-  input_period_ms    (Optional) Delay between inputs in milliseconds
+  class_labels        Path to JSON class labels file
+  image_path(s)       One or more image files for inference
+  input_period_ms     (Optional) Delay between inputs in milliseconds
 
 # Option 1: Run directly
 ./bin/pipelined_inference_driver ./models/sub_model_0.tflite false ./models/sub_model_1.tflite true class_labels.json ./images/_images_1.png
 
-# Option 2: Run via script (500 inputs, input_period=0)
-# Runs Submodel 0 on CPU and Submodel 1 on GPU
+# Option 2: Run via script (./models/sub_model_0.tflite, false, ./models/sub_model_1.tflite, true, 500 inputs, input_period=0)
+# Runs sub-model 0 on CPU and sub-model 1 on GPU
 ./run_pipelined_inference_driver.sh
 ```
 
@@ -125,7 +141,7 @@ A tool for **Slicing** and **Converting** a **.h5** model file into multiple **.
 
 `model_slicer.py` : Interactively slices a given DNN model into multiple sub-models based on user-defined layer indices
   - Input: DNN model in `.h5` format (e.g., `resnet50.h5`)
-  - Output: Sliced sub-models in `.tflite` formats
+  - Output: Sliced sub-models in `.tflite` format
   ```bash
   python model_slicer.py --model-path ./models/resnet50.h5
   ```
@@ -136,10 +152,10 @@ How many submodels? 4
 Enter 3 slicing points for ranges: (0, x1), (x1+1, x2), (x2+1, x3), (x3+1, 176)
 Enter x1 x2 x3: 40 80 120
 Slicing ranges: [(0, 40), (41, 80), (81, 120), (121, 176)]
+Saved sliced tflite model to: ./models/sub_model_0.tflite
 Saved sliced tflite model to: ./models/sub_model_1.tflite
 Saved sliced tflite model to: ./models/sub_model_2.tflite
 Saved sliced tflite model to: ./models/sub_model_3.tflite
-Saved sliced tflite model to: ./models/sub_model_4.tflite
 ```
 
 ### Acknowledgement
