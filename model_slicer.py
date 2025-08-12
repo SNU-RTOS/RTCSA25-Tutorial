@@ -130,17 +130,17 @@ def prepare_next_submodel_inputs(sub_model, submodel_outputs):
 def save_submodel(output_dir, sub_model, submodel_num):
     # Convert the submodel to TFLite format
     converter = tf.lite.TFLiteConverter.from_keras_model(sub_model)
-    tflite_model = converter.convert()
+    litert_model = converter.convert()
 
-    # Save the TFLite model to the specified output directory
+    # Save the LiteRT model to the specified output directory
     os.makedirs(output_dir, exist_ok=True)
     filename = f"sub_model_{submodel_num}.tflite"
-    tflite_path = os.path.join(output_dir, filename)
-    with open(tflite_path, 'wb') as f:
-        f.write(tflite_model)
-    print(f"Saved LiteRT model to: {tflite_path}")
+    litert_path = os.path.join(output_dir, filename)
+    with open(litert_path, 'wb') as f:
+        f.write(litert_model)
+    print(f"Saved LiteRT model to: {litert_path}")
 
-    return tflite_model
+    return litert_model
 
 # Function to parse command line arguments
 def parse_arguments():
@@ -205,9 +205,9 @@ def main():
 
     # Perform slicing and model conversion per submodel
     sub_models = []
-    tflite_models = []
+    litert_models = []
     for i in range(num_slice):
-        # Prepare submodel_inputs for current submodel: either dummy input or previous submodel's output
+        # Prepare submodel_inputs for current submodel
         if i == 0:
             submodel_inputs = {model.layers[0].name: dummy_input}
         else:
@@ -221,7 +221,7 @@ def main():
         sub_models.append(sub_model)
 
         # Convert and save the sliced submodel to TFLite format
-        tflite_models.append(save_submodel(args.output_dir, sub_model, i))
+        litert_models.append(save_submodel(args.output_dir, sub_model, i))
 
 if __name__ == "__main__":
     main()
