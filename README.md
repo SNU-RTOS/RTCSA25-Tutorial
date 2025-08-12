@@ -40,19 +40,16 @@ Key Topics
 
 ### System Requirements
 - Ubuntu 20.04/22.04/24.04 
-
-### Dependencies
-Run the prerequisite installation script:
-```bash
-./scripts/install_prerequisites.sh
-```
-
-This installs:
 - Build tools
 - OpenCV development libraries
 - JSON libraries (jsoncpp)
 - Python development tools
 - Bazel build system
+
+Run the prerequisite installation script at `~/RTCSA25-Tutorial/`:
+```bash
+./scripts/install_prerequisites.sh
+```
 
 ## Environment Setup
 
@@ -76,38 +73,48 @@ The setup script automatically:
 
 #### Inference driver
 ```bash
-# Build inference driver
+# Build the inference driver
 make inference -j4
 
-# Run inference driver 
-# ./bin/inference_driver <model_path> <gpu_usage> <class_labels_path> <image1_path> [image2_path ... imageN_path] [input_period_ms]
+# Run the inference driver
+./bin/inference_driver <model_path> <gpu_usage> <class_labels_path> <image1_path> [image2_path ... imageN_path] [input_period_ms]
+
+Arguments:
+  model_path        Path to .tflite model file
+  gpu_usage         true/false to enable GPU delegate
+  class_labels_path Path to JSON class labels file
+  image_path(s)     One or more image files for inference
+  input_period_ms   (Optional) Delay between inputs in milliseconds
+
+# Option 1: Run directly
 ./bin/inference_driver ./models/resnet50.tflite false class_labels.json ./images/_images_1.png
-or
-# Script for running the inference driver on the GPU with 500 input samples and input_period set to 0
+
+# Option 2: Run via script (GPU, 500 inputs, input_period=0)
 ./run_inference_driver.sh
 ```
 
 #### Instrumentation Harness
 ```bash
-# Build instrumnetation harness
-make instrumentation_harness -j4
-
-# Run inference driver
-# ./bin/instrumentation_harness <model_path> [gpu_usage]
-./bin/instrumentation_harness ./models/resnet50.tflite
-```
-
-#### Pipelined Inference Driver
-```bash
-# Build Pipelined inference drvier
+# Build the pipelined inference driver
 make pipelined -j4
 
-# Run inference driver
-# ./bin/pipelined_inference_driver <submodel0_path> <submodel0_gpu_usage> <submodel1_path> <submodel1_gpu_usage> <class_labels> <image1_path> [image2_path ... imageN_path] [input_period_ms]
-./bin/pipelined_inference_driver ./models/sub_model_0.tflite false ./models/sub_model_1.tflite true ./images/_images_1.png
-or
-# Script for running the pipelined inference driver with 500 input samples
-# Runs Submodel 0 on the CPU and Submodel 1 on the GPU with input_period set to 0
+# Run the pipelined inference driver
+./bin/pipelined_inference_driver <submodel0_path> <submodel0_gpu_usage> <submodel1_path> <submodel1_gpu_usage> <class_labels_path> <image1_path> [image2_path ... imageN_path] [input_period_ms]
+
+Arguments:
+  submodel0_path     Path to first sliced submodel (.tflite)
+  submodel0_gpu_usage true/false to enable GPU delegate for submodel 0
+  submodel1_path     Path to second sliced submodel (.tflite)
+  submodel1_gpu_usage true/false to enable GPU delegate for submodel 1
+  class_labels_path  Path to JSON class labels file
+  image_path(s)      One or more image files for inference
+  input_period_ms    (Optional) Delay between inputs in milliseconds
+
+# Option 1: Run directly
+./bin/pipelined_inference_driver ./models/sub_model_0.tflite false ./models/sub_model_1.tflite true class_labels.json ./images/_images_1.png
+
+# Option 2: Run via script (500 inputs, input_period=0)
+# Runs Submodel 0 on CPU and Submodel 1 on GPU
 ./run_pipelined_inference_driver.sh
 ```
 
@@ -118,7 +125,7 @@ A tool for **Slicing** and **Converting** a **.h5** model file into multiple **.
 
 `model_slicer.py` : Interactively slices a given DNN model into multiple sub-models based on user-defined layer indices
   - Input: DNN model in `.h5` format (e.g., `resnet50.h5`)
-  - Output: Skiced sub-models in `.tflite` formats
+  - Output: Sliced sub-models in `.tflite` formats
   ```bash
   python model_slicer.py --model-path ./models/resnet50.h5
   ```
