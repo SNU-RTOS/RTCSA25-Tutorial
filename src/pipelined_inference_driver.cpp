@@ -27,8 +27,8 @@
  * This driver demonstrates a pipelined inference workflow using two submodels.
  * There are three stages:
  * 1. Stage 0: Preprocess input on CPU core 
- * 2. Stage 1: Run inference for sub-model 0 on CPU core 
- * 3. Stage 2: Run inference for sub-model 1 on GPU                
+ * 2. Stage 1: Run inference for submodel 0 on CPU core 
+ * 3. Stage 2: Run inference for submodel 1 on GPU                
  * 4. Stage 3: Postprocess output on CPU core  */
 
 // === Queues for inter-stage communication ===
@@ -237,14 +237,14 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    const std::string submodel0_path = argv[1];  // Path to sub-model 0
+    const std::string submodel0_path = argv[1];  // Path to submodel 0
     bool submodel0_gpu_usage = false;
     const std::string gpu_usage_str1 = argv[2];
     if(gpu_usage_str1 == "true"){
         submodel0_gpu_usage = true;
     }
 
-    const std::string submodel1_path = argv[3];  // Path to sub-model 1
+    const std::string submodel1_path = argv[3];  // Path to submodel 1
     bool submodel1_gpu_usage = false;
     const std::string gpu_usage_str2 = argv[4];
     if(gpu_usage_str2 == "true"){
@@ -266,7 +266,7 @@ int main(int argc, char* argv[]) {
     }
 
     /* Load models */
-    // 1. Create a std::unique_ptr<tflite::FlatBufferModel> for each sub-model
+    // 1. Create a std::unique_ptr<tflite::FlatBufferModel> for each submodel
     // ======= Write your code here =======
     // std::unique_ptr<tflite::FlatBufferModel>  = 
     //     tflite::FlatBufferModel::BuildFromFile(?.c_str());
@@ -280,7 +280,7 @@ int main(int argc, char* argv[]) {
 
     /* Build interpreters */
     // 1. Create an OpResolver
-    // 2. Create two interpreter builders, one for each sub-model
+    // 2. Create two interpreter builders, one for each submodel
     // 3. Build interpreters using the interpreter builders
     // ======= Write your code here =======
     // tflite::ops::builtin::BuiltinOpResolver
