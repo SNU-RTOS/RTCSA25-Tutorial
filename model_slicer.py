@@ -135,17 +135,10 @@ def save_submodel(output_dir, sub_model, submodel_num):
     # Save the LiteRT model to the specified output directory
     os.makedirs(output_dir, exist_ok=True)
     filename = f"sub_model_{submodel_num}.tflite"
-<<<<<<< HEAD
     litert_path = os.path.join(output_dir, filename)
     with open(litert_path, 'wb') as f:
         f.write(litert_model)
     print(f"Saved LiteRT model to: {litert_path}")
-=======
-    tflite_path = os.path.join(output_dir, filename)
-    with open(tflite_path, 'wb') as f:
-        f.write(tflite_model)
-    print(f"Saved LiteRT model to: {tflite_path}")
->>>>>>> 0424f54 (Minor revisions)
 
     return litert_model
 
