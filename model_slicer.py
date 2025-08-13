@@ -25,58 +25,54 @@ import absl.logging
 absl.logging.set_verbosity(absl.logging.ERROR)
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
-# Function to partition a model into submodels based on specified layer indices
-def DNNPartitioning(model, start, end, prev_outputs):
+# Partition a Keras model object into multiple slices
+def slice_dnn(model, start, end, input_tensors):
     """
     Parameters:
-        model (tf.keras.Model): Full TensorFlow model to be partitioned.
-        start (int): Index of the first layer to include in the submodel.
-        end (int): Index of the layer immediately after the last layer in the submodel. (end-1) is the last layer included.
-        prev_outputs (dict): Mapping from layer name to its output tensor from the preceding submodel.
+        model (tf.keras.Model): Original TensorFlow model to be partitioned
+        start (int): Index of the first layer of the slice
+        end (int): Index of the last layer of the slice
+        input_tensors (dict): Inputs to the slice {generating layer name: tensor}
 
     Key data structures:
-        submodel_inputs (dict): Tensors from the previous submodel, which are submodel_inputs.
-        intra_submodel_skips (dict): Tensors reused within the same submodels (e.g., for skip connections).
-        inter_submodel_skips (dict): Tensors needed as input for the next submodels.
-        current_tensors (tensor or list of tensors): Intermediate tensor(s) passed through operations.
+        inputs (dict): Tensors from the previous submodel, which are inputs
+        intra_slice_skips (dict): Tensors reused within the same submodels (e.g., for skip connections)
+        inter_slice_skips (dict): Tensors needed as input for the next submodels
+        current_tensors (tensor or list of tensors): Intermediate tensor(s) passed through operations
     """
     
     # 6-(1) Initialize data structures
-    submodel_inputs = {}
-    intra_submodel_skips = {}
-    inter_submodel_skips = {}
+    input_layers = {}          # Newly created layers for the slice: one layer per input tensor
+    intra_slice_skips = {}     # Input layers used for processing intra-slice skip connections
+    inter_slice_skips = {}     # !!!! used for processing inter-slice skip connections
 
-    # 6-(2) Creates Keras Input layers from prev_outputs and stores them in both 
-    #    submodel_inputs and intra_submodel_skips for reuse in intra-submodel skip connections
-    for inp, tensor in prev_outputs.items():
-        input_shape = tensor.shape[1:]
-        input_layer = tf.keras.layers.Input(shape=input_shape, name=inp)
-        submodel_inputs[inp] = input_layer
-        intra_submodel_skips[inp] = input_layer
+    # 6-(2) Create input layers 
+    for name, tensor in input_tensors.items():
+        input_layers[name] = tf.keras.layers.Input(shape=tensor.shape[1:], name=name)
+        intra_slice_skips[name] = input_layers[name]
 
-    # 6-(3) Initialize intermediate tensor(s) sequentially propagated within the submodel
+    # 6-(3) Initialize intermediate tensor(s) 
     # Case 1: When model.layers[start] has multiple inputs
     if isinstance(model.layers[start].input, list):
-        current_tensors = [] 
-        for input_source in model.layers[start].input:
-            key = input_source.name.split('/')[0]
-            val = submodel_inputs[key]
-            current_tensors.append(val)                    
-            inter_submodel_skips[key] = val 
+        tensors_to_current_layer = [] 
+        for tensor in model.layers[start].input:
+            key = tensor.name.split('/')[0]
+            val = input_layers[key]
+            tensors_to_current_layer.append(val)                    
+            inter_slice_skips[key] = val 
     # Case 2: When model.layers[start] has a single input
     else:
-        if len(submodel_inputs) == 1:
-            current_tensors = list(submodel_inputs.values())[0]
+        if len(input_layers) == 1:
+            tensors_to_current_layer = list(input_layers.values())[0]
         else:
             key = model.layers[start].input.name.split('/')[0]
-            val = submodel_inputs[key]
-            current_tensors = val
+            val = input_layers[key]
+            tensors_to_current_layer = val
 
     # 6-(4) Iterate over layers in the specified range of indices
-    for i in range(start, end):
+    for i in range(start, end+1):
         layer = model.layers[i]
-        inbound_node = layer._inbound_nodes[0]
-        inbound_layers = inbound_node.inbound_layers
+        inbound_layers = layer._inbound_nodes[0].inbound_layers
 
         # Multiple inbound layers
         if isinstance(inbound_layers, list) and len(inbound_layers) > 1:
@@ -84,57 +80,60 @@ def DNNPartitioning(model, start, end, prev_outputs):
                 origin_layer = model.get_layer(inbound_layer.name)
                 origin_idx = model.layers.index(origin_layer)
                 if origin_idx != i-1:
-                    current_tensors = layer([current_tensors, intra_submodel_skips[origin_layer.name]])
+                    tensors_from_current_layer = \ 
+                        layer([tensors_to_current_layer, intra_slice_skips[origin_layer.name]])
         # Single inbound layer
         else:
             origin_layer = model.get_layer(inbound_layers.name)
-            if origin_layer.name in intra_submodel_skips:
-                current_tensors = layer(intra_submodel_skips[origin_layer.name])
+            if origin_layer.name in intra_slice_skips:
+                tensors_from_current_layer = layer(intra_slice_skips[origin_layer.name])
             else:
-                current_tensors = layer(current_tensors)
+                tensors_from_current_layer = layer(tensors_to_current_layer)
 
         # Multiple outbound connections
         if len(layer._outbound_nodes)>1:
             dest_idx = model.layers.index(layer._outbound_nodes[1].outbound_layer)
-            if dest_idx < end:
-                intra_submodel_skips[layer.name] = current_tensors
+            if dest_idx < end+1:
+                intra_slice_skips[layer.name] = tensors_from_current_layer
             else:
-                inter_submodel_skips[layer.name] = current_tensors
+                inter_slice_skips[layer.name] = tensors_from_current_layer
         # Single outbound connection
         else:
             if i != len(model.layers)-1:
                 dest_idx = model.layers.index(layer._outbound_nodes[0].outbound_layer)
                 if dest_idx != i+1:
-                    if dest_idx < end:
-                        intra_submodel_skips[layer.name] = current_tensors
+                    if dest_idx < end+1:
+                        intra_slice_skips[layer.name] = tensors_from_current_layer
                     else:
-                        inter_submodel_skips[layer.name] = current_tensors
+                        inter_slice_skips[layer.name] = tensors_from_current_layer
+        
+        tensors_to_current_layer = tensors_from_current_layer
 
     # 6-(5) If there are outputs needed for the next submodel (e.g., skip connections)
-    if inter_submodel_skips:
-        current_tensors=[current_tensors]+list(inter_submodel_skips.values())
+    if inter_slice_skips:
+        tensors_from_current_layer = [tensors_from_current_layer] + list(inter_slice_skips.values())
 
     # 6-(6) Create and return the submodel
-    submodel = tf.keras.models.Model(inputs=list(submodel_inputs.values()), outputs=current_tensors)
-    return submodel
+    sliced_model = tf.keras.models.Model(inputs=list(input_layers.values()), outputs=tensors_from_current_layer)
+    return sliced_model
 
-# Prepare submodel_inputs for the next submodel based on the outputs of the current submodel
-def prepare_next_submodel_inputs(sub_model, submodel_outputs):
+# Prepare inputs for the next submodel based on the outputs of the current submodel
+def prepare_next_slice_inputs(submodel, submodel_outputs):
     next_inputs = {}
-    for model_output, actual_output in zip(sub_model.outputs, submodel_outputs):
+    for model_output, actual_output in zip(submodel.outputs, submodel_outputs):
         layer_name = model_output._keras_history[0].name
         next_inputs[layer_name] = actual_output
     return next_inputs
 
 # Save the submodel as a LiteRT model
-def save_submodel(output_dir, sub_model, submodel_num):
+def save_sliced_model(output_dir, submodel, submodel_num):
     # Convert the submodel to TFLite format
-    converter = tf.lite.TFLiteConverter.from_keras_model(sub_model)
+    converter = tf.lite.TFLiteConverter.from_keras_model(submodel)
     litert_model = converter.convert()
 
     # Save the LiteRT model to the specified output directory
     os.makedirs(output_dir, exist_ok=True)
-    filename = f"sub_model_{submodel_num}.tflite"
+    filename = f"submodel_{submodel_num}.tflite"
     litert_path = os.path.join(output_dir, filename)
     with open(litert_path, 'wb') as f:
         f.write(litert_model)
@@ -150,7 +149,7 @@ def parse_arguments():
     return parser.parse_args()
 
 # Function to get slice indices from the user
-def get_slice_indices_from_user(num_layers):
+def get_start_idx_slice(num_layers):
     n = int(input("How many submodels? ").strip())
     if n < 1:
         raise ValueError("Submodel count must be >= 1")
@@ -165,7 +164,8 @@ def get_slice_indices_from_user(num_layers):
         range_str = ', '.join(ranges)
 
         x_list = ' '.join([f"x{i}" for i in range(1, n)])
-        print(f"Enter {n-1} slice indices for ranges: {range_str}")
+        print(f"Generated submodels look like: {range_str}")
+
         user_input = input(f"Enter {x_list}: ").strip()
         cuts = sorted(int(current_tensors) for current_tensors in user_input.split())
 
@@ -173,7 +173,7 @@ def get_slice_indices_from_user(num_layers):
     
     # Create partitioning points to match the internal model slicing logic
     slice_pairs = [(points[i], points[i+1]) for i in range(len(points)-1)]
-    slice_indices = [1] + [end + 1 for _, end in slice_pairs]
+    start_idx_slice = [1] + [end + 1 for _, end in slice_pairs]
 
     # For display: show actual slicing ranges in terms of layers
     slice_ranges = [
@@ -182,46 +182,47 @@ def get_slice_indices_from_user(num_layers):
     ]
 
     if n==1:
-        print("No slicing needed. Just converting the model.")
+        print("Just converting the model.")
     else:
-        print(f"Slicing ranges: {slice_ranges}")
+        print(f"Submodel layer ranges: {slice_ranges}")
     
-    return n, slice_indices
+    return n, start_idx_slice
 
 
 def main():
     # Parse command line arguments
     args = parse_arguments()
 
-    # Load the model from the given path without compiliation (for inference/slicing only)
+    # Load the model from the given path without compilation (for inference/slicing only)
     model = load_model(args.model_path, compile=False)
     
-    # Ask the user how many submodels they want to split into
+    # Ask the user for the number of submodels and the start index of each
     num_layers = len(model.layers)
-    num_slice, slice_indices = get_slice_indices_from_user(num_layers)
+    num_slices, start_idx_slice = get_start_idx_slice(num_layers)
 
     # Create a dummy input tensor for the first submodel
-    dummy_input = np.random.rand(*(1,224,224,3))
+    input_shape = model.layers[0].input_shape[0][1:]
+    dummy_input = np.random.rand(1, *input_shape)
 
     # Perform slicing and model conversion per submodel
-    sub_models = []
-    litert_models = []
-    for i in range(num_slice):
-        # Prepare submodel_inputs for current submodel
+    sliced_models = []
+    for i in range(num_slices):
+        # Prepare inputs for current submodel
         if i == 0:
-            submodel_inputs = {model.layers[0].name: dummy_input}
+            slice_inputs = {model.layers[0].name: dummy_input}
         else:
-            submodel_inputs = prepare_next_submodel_inputs(sub_models[i-1], sub_models[i-1].outputs)
+            slice_inputs = \
+                prepare_next_slice_inputs(sliced_models[i-1], sliced_models[i-1].outputs)
 
-        # Slice the model using DNNPartitioning
-        sub_model = DNNPartitioning(model, 
-                                    slice_indices[i], 
-                                    slice_indices[i+1], 
-                                    submodel_inputs)
-        sub_models.append(sub_model)
+        # Slice the model using slice_dnn
+        sliced_model = slice_dnn(model, 
+                                  start_idx_slice[i], 
+                                  start_idx_slice[i+1]-1, 
+                                  slice_inputs)
+        sliced_models.append(sliced_model)
 
-        # Convert and save the sliced submodel to TFLite format
-        litert_models.append(save_submodel(args.output_dir, sub_model, i))
+        # Convert and save the sliced model to TFLite format
+        save_sliced_model(args.output_dir, sliced_model, i)
 
 if __name__ == "__main__":
     main()
