@@ -149,7 +149,7 @@ void stage2_thread_function(tflite::Interpreter* interpreter) {
         std::string label = "Stage2 " + std::to_string(intermediate_tensor.index);
         util::timer_start(label);
 
-        /* Copy each sub-tensor from intermediate_tensor.data into 
+        /* Copy each tensor from intermediate_tensor.data into 
         *  the corresponding input tensors */
         // ======= Let's write together =======
         for (size_t i = 0; i < interpreter->inputs().size(); ++i) {
@@ -237,14 +237,14 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    const std::string submodel0_path = argv[1];  // Path to submodel 0
+    const std::string submodel0_path = argv[1];  
     bool submodel0_gpu_usage = false;
     const std::string gpu_usage_str1 = argv[2];
     if(gpu_usage_str1 == "true"){
         submodel0_gpu_usage = true;
     }
 
-    const std::string submodel1_path = argv[3];  // Path to submodel 1
+    const std::string submodel1_path = argv[3];  
     bool submodel1_gpu_usage = false;
     const std::string gpu_usage_str2 = argv[4];
     if(gpu_usage_str2 == "true"){
