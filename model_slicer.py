@@ -212,15 +212,9 @@ def main():
 
     # Perform slicing and model conversion per submodel
     sub_models = []
-<<<<<<< HEAD
     litert_models = []
     for i in range(num_slice):
         # Prepare submodel_inputs for current submodel
-=======
-    tflite_models = []
-    for i in range(num_slice):
-        # Prepare submodel_inputs for current submodel: either dummy input or previous submodel's output
->>>>>>> 0424f54 (Minor revisions)
         if i == 0:
             submodel_inputs = {model.layers[0].name: dummy_input}
         else:
@@ -234,11 +228,7 @@ def main():
         sub_models.append(sub_model)
 
         # Convert and save the sliced submodel to TFLite format
-<<<<<<< HEAD
         litert_models.append(save_submodel(args.output_dir, sub_model, i))
-=======
-        tflite_models.append(save_submodel(args.output_dir, sub_model, i))
->>>>>>> 0424f54 (Minor revisions)
 
 if __name__ == "__main__":
     main()
