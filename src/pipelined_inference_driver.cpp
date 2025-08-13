@@ -298,9 +298,9 @@ int main(int argc, char* argv[]) {
 
     /* Apply delegate */
     // 1. Create a XNNPACK delegate
-    // 2. Apply the delegate to the submodel0 interpreter
+    // 2. Apply the delegate to the submodel 0 interpreter
     // 3. Create a GPU delegate
-    // 4. Apply the GPU delegate to the submodel1 interpreter
+    // 4. Apply the GPU delegate to the submodel 1 interpreter
     // ======= Write your code here =======
     // TfLiteDelegate* 
     // TfLiteXNNPackDelegateCreate(nullptr);
