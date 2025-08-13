@@ -109,7 +109,7 @@ void stage1_thread_function(tflite::Interpreter* interpreter) {
         
         // ====================================
 
-        /* Get output tensors of the interpreter and copy them to an intermediate tensor */
+        /* Extract output tensors and copy them into an intermediate tensor */
         // Clear data in it for reuse
         intermediate_tensor.data.clear();
         intermediate_tensor.tensor_boundaries.clear();
@@ -118,18 +118,18 @@ void stage1_thread_function(tflite::Interpreter* interpreter) {
             // Get i-th output tensor object
             
 
-            // Calculate tensor size
-            int size = 1;
+            // Calculate the number of elements in the tensor
+            int num_elements = 1;
             for (int d = 0; d < output_tensor->dims->size; ++d)
-                size *= output_tensor->dims->data[d];
+                num_elements *= output_tensor->dims->data[d];
 
             // Resize intermediate_tensor.data and copy output tensor data into it
             int current_boundary = intermediate_tensor.data.size();
-            intermediate_tensor.data.resize(current_boundary + size);
+            intermediate_tensor.data.resize(current_boundary + num_elements);
             std::memcpy(intermediate_tensor.data.data() + current_boundary,
                 output_tensor->data.f,
-                size * sizeof(float));
-            intermediate_tensor.tensor_boundaries.push_back(current_boundary + size);
+                num_elements * sizeof(float));
+            intermediate_tensor.tensor_boundaries.push_back(current_boundary + num_elements);
         } // end of for loop
         // ====================================
     
@@ -178,18 +178,18 @@ void stage2_thread_function(tflite::Interpreter* interpreter) {
             // Get i-th output tensor object
             
 
-            // Calculate tensor size
-            int size = 1;
+            // Calculate the number of elements in the tensor
+            int num_elements = 1;
             for (int d = 0; d < output_tensor->dims->size; ++d)
-                size *= output_tensor->dims->data[d];
+                num_elements *= output_tensor->dims->data[d];
 
             // Resize intermediate_tensor.data and copy output tensor data into it
             int current_boundary = intermediate_tensor.data.size();
-            intermediate_tensor.data.resize(current_boundary + size);
+            intermediate_tensor.data.resize(current_boundary + num_elements);
             std::memcpy(intermediate_tensor.data.data() + current_boundary,
                 output_tensor->data.f,
-                size * sizeof(float));
-            intermediate_tensor.tensor_boundaries.push_back(current_boundary + size);
+                num_elements * sizeof(float));
+            intermediate_tensor.tensor_boundaries.push_back(current_boundary + num_elements);
         } // end of for loop
         // ====================================
         stage2_to_stage3_queue.push(std::move(intermediate_tensor));
