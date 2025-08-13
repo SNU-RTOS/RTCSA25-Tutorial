@@ -29,7 +29,7 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 def DNNPartitioning(model, start, end, prev_outputs):
     """
     Parameters:
-        model (tf.keras.Model): Full Keras model to be partitioned.
+        model (tf.keras.Model): Full TensorFlow model to be partitioned.
         start (int): Index of the first layer to include in the submodel.
         end (int): Index of the layer immediately after the last layer in the submodel. (end-1) is the last layer included.
         prev_outputs (dict): Mapping from layer name to its output tensor from the preceding submodel.
