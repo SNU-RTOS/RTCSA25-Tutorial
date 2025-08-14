@@ -60,7 +60,7 @@ void stage0_thread_function(const std::vector<std::string>& images, int input_pe
             continue;
         }
 
-        /* Create an IntermediateTensor, deep-copy preprocessed_image data into it, 
+        /* Create an IntermediateTensor, copy preprocessed_image data into it, 
         *  and move it into stage0_to_stage1_queue */
         // Hint: std::memcpy(destination_ptr, source_ptr, num_bytes);
         IntermediateTensor intermediate_tensor;
