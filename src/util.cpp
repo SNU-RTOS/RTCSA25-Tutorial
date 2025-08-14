@@ -135,7 +135,7 @@ void util::print_average_latency(const std::string &label) {
     if (!latencies.empty()) {
         long long sum = std::accumulate(latencies.begin(), latencies.end(), 0LL);
         double avg = static_cast<double>(sum) / latencies.size();
-        std::cout << "\n[INFO] Average \"" << label << " latency \" (" 
+        std::cout << "\n[INFO] Average " << label << " latency (" 
                   << latencies.size() << " runs): " << avg << " ms" << std::endl;
     } else {
         std::cout << "\n[WARN] No measurements found for label containing \"" << label << "\"" << std::endl;
@@ -156,7 +156,7 @@ void util::print_throughput(const std::string &label, size_t num_inputs) {
     if (total_latency > 0 && num_inputs > 0) {
         double seconds = total_latency / 1000.0;
         double throughput = num_inputs / seconds;
-        std::cout << "\n[INFO] Throughput for \"" << label << "\": " 
+        std::cout << "\n[INFO] Throughput: " 
                   << throughput << " items/sec (" << num_inputs 
                   << " items in " << total_latency << " ms)" << std::endl;
     } else {
