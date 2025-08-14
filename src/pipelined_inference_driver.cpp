@@ -25,7 +25,7 @@
 
 /* Pipelined Inference Driver
  * This driver demonstrates a pipelined inference workflow using two submodels.
- * There are three stages:
+ * There are four stages:
  * 1. Stage 0: Preprocess input on CPU core 
  * 2. Stage 1: Run inference for submodel 0 on CPU core 
  * 3. Stage 2: Run inference for submodel 1 on GPU                
@@ -60,7 +60,7 @@ void stage0_thread_function(const std::vector<std::string>& images, int input_pe
             continue;
         }
 
-        /* Create IntermediateTensor, deep-copy preprocessed_image data into it, 
+        /* Create an IntermediateTensor, deep-copy preprocessed_image data into it, 
         *  and move it into stage0_to_stage1_queue */
         // Hint: std::memcpy(destination_ptr, source_ptr, num_bytes);
         IntermediateTensor intermediate_tensor;
@@ -95,7 +95,7 @@ void stage1_thread_function(tflite::Interpreter* interpreter) {
         std::string label = "Stage1 " + std::to_string(intermediate_tensor.index);
         util::timer_start(label);
 
-        /* Access the 0th input tensor of the interpreter
+        /* Access the 0th input tensor of the interpreter as a float pointer
         *  and copy the contents of intermediate_tensor.data into it */
         // Hint: std::memcpy(destination_ptr, source_ptr, num_bytes);
         // ======= Write your code here =======
