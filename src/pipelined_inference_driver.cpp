@@ -113,7 +113,7 @@ void stage1_thread_function(tflite::Interpreter* interpreter) {
         // Clear data in it for reuse
         stage_output.data.clear();
         stage_output.tensor_end_offsets.clear();
-        // ======= Let's write together =======
+        // ======= Write your code here =======
         for (size_t i = 0; i < interpreter->outputs().size(); ++i) {
             // Get i-th output tensor object
             TfLiteTensor* output_tensor = interpreter->output_tensor(i);
@@ -151,7 +151,7 @@ void stage2_thread_function(tflite::Interpreter* interpreter) {
 
         /* Copy each sub-tensor from stage_output.data into 
         *  the corresponding input tensors */
-        // ======= Let's write together =======
+        // ======= Write your code here =======
         for (size_t i = 0; i < interpreter->inputs().size(); ++i) {
             // Get i-th input tensor from the interpreter
             float* input_data = interpreter->typed_input_tensor<float>(i);
@@ -173,7 +173,7 @@ void stage2_thread_function(tflite::Interpreter* interpreter) {
         // Clear data in it for reuse
         stage_output.data.clear();
         stage_output.tensor_end_offsets.clear();
-        // ======= Let's write together =======
+        // ======= Write your code here =======
         for (size_t i = 0; i < interpreter->outputs().size(); ++i) {
             // Get i-th output tensor object
             TfLiteTensor* output_tensor = interpreter->output_tensor(i);
