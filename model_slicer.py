@@ -24,7 +24,7 @@ import absl.logging
 absl.logging.set_verbosity(absl.logging.ERROR)
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
-# Slice a model from the start layer to the end layer
+# Slice a model from start layer to end layer
 def slice_dnn(model, start, end, input_tensors): 
     """
     Parameters:
@@ -65,7 +65,7 @@ def slice_dnn(model, start, end, input_tensors):
         val = input_layers[key]
         tensors_to_current_layer = val
 
-    # 6-(3) Perform each layer's operation and store outputs for skip connections
+    # 6-(3) Iterate and connect Layers
     for i in range(start, end+1):
         layer = model.layers[i]
         
