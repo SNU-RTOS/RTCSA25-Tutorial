@@ -65,7 +65,7 @@ def slice_dnn(model, start, end, input_tensors):
         val = input_layers[key]
         tensors_to_current_layer = val
 
-    # 6-(3) Iterate and connect Layers
+    # 6-(3) Build hidden layers
     for i in range(start, end+1):
         layer = model.layers[i]
         
