@@ -27,6 +27,7 @@ base_images=(
     "./images/_images_3.png"
     "./images/_images_4.png"
     "./images/_images_5.png"
+    "./images/_images_6.png"
 )
 input_period_ms=0
 total_inputs=500 # adjust as needed
