@@ -200,7 +200,7 @@ def main():
     # Perform slicing and conversion
     slices = []
     for i in range(num_slices):
-        # Prepare inputs for each slice
+        # Prepare inputs for the slice
         if i == 0:
             slice_inputs = {model.layers[0].name: dummy_input}
         else:
