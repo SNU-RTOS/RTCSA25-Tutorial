@@ -169,7 +169,7 @@ void stage2_thread_function(tflite::Interpreter* interpreter) {
         interpreter->Invoke();
         // ====================================
 
-        /* Extract data from output tensors and copy them into a StageOutput */
+        /* Extract data from the interpreter's output tensors and copy into a StageOutput */
         // Clear data in it for reuse
         stage_output.data.clear();
         stage_output.tensor_end_offsets.clear();
