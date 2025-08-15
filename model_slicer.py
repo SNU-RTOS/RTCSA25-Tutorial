@@ -122,7 +122,7 @@ def prepare_slice_inputs(slice):
         next_inputs[layer_name] = output_tensor
     return next_inputs
 
-# Save the given slice as a LiteRT model
+# Save the slice as a LiteRT model
 def convert_save_slice(output_dir, slice, slice_num):
     # Convert the slice to a LiteRT model
     converter = tf.lite.TFLiteConverter.from_keras_model(slice)
