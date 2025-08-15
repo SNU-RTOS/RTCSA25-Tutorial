@@ -40,10 +40,10 @@
 
 /* Data structures for pipelined inference */
 // Data container used to pass results between pipeline stages
-struct IntermediateTensor {
+struct StageOutput {
     int index;                           // Index of the input image (used for tracking)
     std::vector<float> data;             // Flattened data of input/output tensors
-    std::vector<int> tensor_boundaries;  // Marks boundaries between multiple output tensors (if any)
+    std::vector<int> tensor_end_offsets; // End positions of each tensor in the flattened output
 };
 
 // Thread-safe queue for passing data between threads
