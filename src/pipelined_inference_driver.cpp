@@ -70,7 +70,7 @@ void stage0_thread_function(const std::vector<std::string>& images, int input_pe
             preprocessed_image.total() * preprocessed_image.channels());
         std::memcpy(stage_output.data.data(), preprocessed_image.ptr<float>(), 
             stage_output.data.size() * sizeof(float));
-        stage_output.tensor_boundaries = 
+        stage_output.tensor_end_offsets = 
             {static_cast<int>(stage_output.data.size())};
         // ====================================
         stage0_to_stage1_queue.push(std::move(stage_output));
@@ -112,7 +112,7 @@ void stage1_thread_function(tflite::Interpreter* interpreter) {
         /* Extract data from output tensors and copy them into a StageOutput */
         // Clear data in it for reuse
         stage_output.data.clear();
-        stage_output.tensor_boundaries.clear();
+        stage_output.tensor_end_offsets.clear();
         // ======= Let's write together =======
         for (size_t i = 0; i < interpreter->outputs().size(); ++i) {
             // Get i-th output tensor object
@@ -124,12 +124,12 @@ void stage1_thread_function(tflite::Interpreter* interpreter) {
                 num_elements *= output_tensor->dims->data[d];
 
             // Resize stage_output.data and copy output tensor data into it
-            int current_boundary = stage_output.data.size();
-            stage_output.data.resize(current_boundary + num_elements);
-            std::memcpy(stage_output.data.data() + current_boundary,
+            int current_data_length = stage_output.data.size();
+            stage_output.data.resize(current_data_length + num_elements);
+            std::memcpy(stage_output.data.data() + current_data_length,
                 output_tensor->data.f,
                 num_elements * sizeof(float));
-            stage_output.tensor_boundaries.push_back(current_boundary + num_elements);
+            stage_output.tensor_end_offsets.push_back(current_data_length + num_elements);
         } // end of for loop
         // ====================================
     
@@ -157,8 +157,8 @@ void stage2_thread_function(tflite::Interpreter* interpreter) {
             float* input_data = interpreter->typed_input_tensor<float>(i);
 
             // Copy data from stage_output to i-th input tensor
-            int start_idx = (i == 0) ? 0 : stage_output.tensor_boundaries[i-1];
-            int end_idx = stage_output.tensor_boundaries[i];
+            int start_idx = (i == 0) ? 0 : stage_output.tensor_end_offsets[i-1];
+            int end_idx = stage_output.tensor_end_offsets[i];
             std::memcpy(input_data, stage_output.data.data() + start_idx,
                 (end_idx - start_idx) * sizeof(float));
         } // end of for loop
@@ -172,7 +172,7 @@ void stage2_thread_function(tflite::Interpreter* interpreter) {
         /* Extract data from output tensors and copy them into a StageOutput */
         // Clear data in it for reuse
         stage_output.data.clear();
-        stage_output.tensor_boundaries.clear();
+        stage_output.tensor_end_offsets.clear();
         // ======= Let's write together =======
         for (size_t i = 0; i < interpreter->outputs().size(); ++i) {
             // Get i-th output tensor object
@@ -184,12 +184,12 @@ void stage2_thread_function(tflite::Interpreter* interpreter) {
                 num_elements *= output_tensor->dims->data[d];
 
             // Resize stage_output.data and copy output tensor data into it
-            int current_boundary = stage_output.data.size();
-            stage_output.data.resize(current_boundary + num_elements);
-            std::memcpy(stage_output.data.data() + current_boundary,
+            int current_data_length = stage_output.data.size();
+            stage_output.data.resize(current_data_length + num_elements);
+            std::memcpy(stage_output.data.data() + current_data_length,
                 output_tensor->data.f,
                 num_elements * sizeof(float));
-            stage_output.tensor_boundaries.push_back(current_boundary + num_elements);
+            stage_output.tensor_end_offsets.push_back(current_data_length + num_elements);
         } // end of for loop
         // ====================================
         stage2_to_stage3_queue.push(std::move(stage_output));
