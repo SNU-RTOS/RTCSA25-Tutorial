@@ -61,7 +61,7 @@ void stage0_thread_function(const std::vector<std::string>& images, int input_pe
         }
 
         /* Create an IntermediateTensor, copy preprocessed_image data into it, 
-        *  and move it into stage0_to_stage1_queue */
+        *  and push it into stage0_to_stage1_queue */
         // Hint: std::memcpy(destination_ptr, source_ptr, num_bytes);
         IntermediateTensor intermediate_tensor;
         // ======= Write your code here =======

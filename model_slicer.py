@@ -57,6 +57,7 @@ def slice_dnn(model, start, end, input_tensors):
     if isinstance(model.layers[start].input, list):
         for tensor in model.layers[start].input:
             key = tensor.name.split('/')[0]
+            print(tensor.name)
             val = input_layers[key]
             tensors_to_current_layer.append(val)                    
             inter_slice_skips[key] = val 
@@ -66,6 +67,7 @@ def slice_dnn(model, start, end, input_tensors):
             tensors_to_current_layer = list(input_layers.values())[0]
         else:
             key = model.layers[start].input.name.split('/')[0]
+            print(model.layers[start].input.name)
             val = input_layers[key]
             tensors_to_current_layer = val
 
@@ -207,6 +209,7 @@ def main():
         # Prepare inputs
         if i == 0:
             slice_inputs = {model.layers[0].name: dummy_input}
+            print(model.layers[0].name)
         else:
             slice_inputs = prepare_slice_inputs(sliced_models[i-1])
 
