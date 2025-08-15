@@ -99,14 +99,14 @@ void stage1_thread_function(tflite::Interpreter* interpreter) {
         *  and copy the contents of stage_output.data into it */
         // Hint: std::memcpy(destination_ptr, source_ptr, num_bytes);
         // ======= Write your code here =======
-        float *input_tensor = interpreter->typed_input_tensor<float>(0);
-        std::memcpy(input_tensor, stage_output.data.data(), 
-            stage_output.data.size() * sizeof(float));
+        
+
+
         // ====================================
 
         /* Inference */
         // ======= Write your code here =======
-        interpreter->Invoke();
+        
         // ====================================
 
         /* Extract data from the interpreter's output tensors and copy into a StageOutput */
@@ -116,12 +116,12 @@ void stage1_thread_function(tflite::Interpreter* interpreter) {
         // ======= Write your code here =======
         for (size_t i = 0; i < interpreter->outputs().size(); ++i) {
             // Get i-th output tensor object
-            TfLiteTensor* output_tensor = interpreter->output_tensor(i);
+            
 
             // Calculate the number of elements in the tensor
             int num_elements = 1;
             for (int d = 0; d < output_tensor->dims->size; ++d)
-                num_elements *= output_tensor->dims->data[d];
+                
 
             // Resize stage_output.data and copy output tensor data into it
             int current_data_length = stage_output.data.size();
@@ -153,7 +153,7 @@ void stage2_thread_function(tflite::Interpreter* interpreter) {
         *  the corresponding input tensors of the interpreter */
         // ======= Write your code here =======
         for (size_t i = 0; i < interpreter->inputs().size(); ++i) {
-            // Get i-th input tensor from the interpreter
+            // Get i-th input tensor from the interpreter as a float pointer
             float* input_data = interpreter->typed_input_tensor<float>(i);
 
             // Copy data from stage_output to i-th input tensor
