@@ -149,8 +149,8 @@ void stage2_thread_function(tflite::Interpreter* interpreter) {
         std::string label = "Stage2 " + std::to_string(stage_output.index);
         util::timer_start(label);
 
-        /* Copy each sub-tensor from stage_output.data into 
-        *  the corresponding input tensors */
+        /* Extract tensor data from stage_output.data and copy into 
+        *  the corresponding input tensors of the interpreter */
         // ======= Write your code here =======
         for (size_t i = 0; i < interpreter->inputs().size(); ++i) {
             // Get i-th input tensor from the interpreter
