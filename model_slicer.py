@@ -118,15 +118,8 @@ def slice_dnn(model, start, end, input_tensors):
 
         # Update intra_slice_skips and inter_slice_skips based on the current layer's outbound nodes
         if i < end: # Ensure the current layer is not the slice's last layer
-            if len(layer._outbound_nodes) > 1: # When current layer feeds multiple layers (fan-out)
-                for outbound_node in layer._outbound_nodes:
-                    skip_target_idx = model.layers.index(outbound_node.outbound_layer)
-                    if skip_target_idx <= end and skip_target_idx > i + 1:
-                        intra_slice_skips[layer.name] = tensors_from_current_layer
-                    elif skip_target_idx > end:
-                        inter_slice_skips[layer.name] = tensors_from_current_layer
-            else: # When current layer feeds a single layer
-                skip_target_idx = model.layers.index(layer._outbound_nodes[0].outbound_layer)
+            for outbound_node in layer._outbound_nodes: 
+                skip_target_idx = model.layers.index(outbound_node.outbound_layer)
                 if skip_target_idx <= end and skip_target_idx > i + 1:
                     intra_slice_skips[layer.name] = tensors_from_current_layer
                 elif skip_target_idx > end:
