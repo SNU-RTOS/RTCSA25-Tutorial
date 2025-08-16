@@ -66,8 +66,7 @@ def slice_dnn(model, start, end, input_tensors):
                 # We precisely check if the outbound layer is not the next layer
                 elif target_idx <= end and target_idx > start:
                     intra_slice_skips[name] = input_layers[name]
-                elif target_idx == start: # target_idx == start
-                    print("Start 1")
+                elif target_idx == start:
                     tensors_to_start_layer.append(input_layers[name])
         # If an input layer has a single outbound layer
         else:
@@ -77,8 +76,7 @@ def slice_dnn(model, start, end, input_tensors):
                 inter_slice_skips[name] = input_layers[name]
             elif target_idx <= end and target_idx > start:
                 intra_slice_skips[name] = input_layers[name]
-            elif target_idx == start: # target_idx == start
-                print("Start 2")
+            elif target_idx == start:
                 tensors_to_start_layer.append(input_layers[name])
 
     # 6-(3) Build hidden layers
@@ -132,19 +130,14 @@ def slice_dnn(model, start, end, input_tensors):
             origin_layer = model.get_layer(inbound_layers.name)
             if origin_layer.name in intra_slice_skips:
                 tensors_from_current_layer = layer(intra_slice_skips[origin_layer.name])
-                # print(f"Output: {tensors_from_current_layer}")
             else:
-                # print(f"Input: {tensors_to_current_layer}")
                 tensors_from_current_layer = layer(tensors_to_current_layer)
-                # print(f"Output: {tensors_from_current_layer}")
 
         # Multiple outputs from current layer
         if len(layer._outbound_nodes) > 1:
             for outbound_node in layer._outbound_nodes:
                 skip_target_idx = model.layers.index(outbound_node.outbound_layer)
-                print(f"Layer {skip_target_idx}")
                 if skip_target_idx > end:
-                    print("SAVED")
                     inter_slice_skips[layer.name] = tensors_from_current_layer
                 elif skip_target_idx <= end and skip_target_idx > i + 1:
                     intra_slice_skips[layer.name] = tensors_from_current_layer
@@ -163,10 +156,8 @@ def slice_dnn(model, start, end, input_tensors):
 
     # 6-(4) Construct output tensors
     if inter_slice_skips:
-        print(tensors_from_current_layer)
-        print(list(inter_slice_skips.values()))
         tensors_from_current_layer = [tensors_from_current_layer] + list(inter_slice_skips.values())
-        print(tensors_from_current_layer)
+
     # 6-(5) Create and return the slice
     slice = tf.keras.models.Model(inputs=list(input_layers.values()), 
                                   outputs=tensors_from_current_layer)
@@ -258,7 +249,7 @@ def main():
     # Perform slicing and conversion
     slices = []
     for i in range(num_slices):
-        # Prepare inputs for the slice
+        # Prepare inputs for each slice
         if i == 0:
             slice_inputs = {model.layers[0].name: dummy_input}
         else:
