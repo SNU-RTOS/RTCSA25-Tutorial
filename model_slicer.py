@@ -117,7 +117,7 @@ def slice_dnn(model, start, end, input_tensors):
             else:
                 tensors_from_current_layer = layer(tensors_to_current_layer)
 
-        # Update inter/intra-slice skips according to the outbound nodes of the i-th layer
+        # Update inter/intra-slice skips according to the outbound nodes of the current layer
         if i != end: # Check if the current layer is not the end layer
             if len(layer._outbound_nodes) > 1: # Multiple outputs from current layer
                 for outbound_node in layer._outbound_nodes:
