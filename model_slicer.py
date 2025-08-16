@@ -48,6 +48,7 @@ def slice_dnn(model, start, end, input_tensors):
     tensors_to_start_layer = []    
 
     # 6-(1) Create input layers and figure out the usage of each input layer
+    # Rule 1, 2, 3, 4
     for name, tensor in input_tensors.items():
         # Input layers are created
         input_layers[name] = tf.keras.layers.Input(shape=tensor.shape[1:], name=name)
@@ -58,25 +59,26 @@ def slice_dnn(model, start, end, input_tensors):
             for outbound_node in input_layer._outbound_nodes:
                 outbound_layer = outbound_node.outbound_layer
                 target_idx = model.layers.index(outbound_layer)
-                if target_idx <= end and target_idx > start:
+                if target_idx == start:
+                    tensors_to_start_layer.append(input_layers[name])
+                elif target_idx <= end and target_idx > start:
                     intra_slice_skips[name] = input_layers[name]
                 elif target_idx > end:
                     # Any inter-slice skip connections that are made here are not used in this slice
                     inter_slice_skips[name] = input_layers[name]
-                elif target_idx == start:
-                    tensors_to_start_layer.append(input_layers[name])
         else:
             outbound_layer = input_layer._outbound_nodes[0].outbound_layer
             target_idx = model.layers.index(outbound_layer)
-            if target_idx <= end and target_idx > start:
+            if target_idx == start:
+                tensors_to_start_layer.append(input_layers[name])
+            elif target_idx <= end and target_idx > start:
                 intra_slice_skips[name] = input_layers[name]
             elif target_idx > end:
                 # Any inter-slice skip connections that are made here are not used in this slice
                 inter_slice_skips[name] = input_layers[name]
-            elif target_idx == start:
-                tensors_to_start_layer.append(input_layers[name])
 
     # 6-(2) Build layers and update intra-slice and inter-slice skip connections
+    # Rule 5, 6, 7
     # # Set the start layer's inputs from tensors_to_start_layer
     if(len(tensors_to_start_layer) == 1):
         tensors_to_current_layer = tensors_to_start_layer[0]
@@ -92,7 +94,7 @@ def slice_dnn(model, start, end, input_tensors):
             if(i == start):
                 tensors_from_current_layer = layer(tensors_to_current_layer)
             else: 
-                # TODO: What if the current layer does not require an input tensor of it's previous layer?
+                # NOTE: The model slicer assumes that the output of layer i is always used by layer i+1
                 tensors_to_current_layer = [tensors_to_current_layer] if not isinstance(tensors_to_current_layer, list) else tensors_to_current_layer
                 
                 # From inbound layers, collect the required intra-slice skip tensors
