@@ -48,7 +48,7 @@ def slice_dnn(model, start, end, input_tensors):
     tensors_to_start_layer = []    
 
     # 6-(1) Create input layers and figure out the usage of each input layer
-    # Rule 1, 2, 3, 4
+    # Case 1, 2, 3, and 4
     for name, tensor in input_tensors.items():
         # Input layers are created
         input_layers[name] = tf.keras.layers.Input(shape=tensor.shape[1:], name=name)
@@ -78,7 +78,7 @@ def slice_dnn(model, start, end, input_tensors):
                 inter_slice_skips[name] = input_layers[name]
 
     # 6-(2) Build layers and update intra-slice and inter-slice skip connections
-    # Rule 5, 6, 7
+    # Case 5, 6, and 7
     # # Set the start layer's inputs from tensors_to_start_layer
     if(len(tensors_to_start_layer) == 1):
         tensors_to_current_layer = tensors_to_start_layer[0]
