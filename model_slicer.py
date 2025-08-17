@@ -54,9 +54,9 @@ def slice_dnn(model, start, end, input_tensors):
         input_layers[name] = tf.keras.layers.Input(shape=tensor.shape[1:], name=name)
         
         # Inspect an input layer’s outbound nodes to see where the model consumes it
-        input_layer = model.get_layer(name)
-        if len(input_layer._outbound_nodes) > 1: # If an input layer has multiple outbound layers, its output feeds multiple layers
-            for outbound_node in input_layer._outbound_nodes:
+        original_input_layer = model.get_layer(name)
+        if len(original_input_layer._outbound_nodes) > 1: # If an input layer has multiple outbound layers, its output feeds multiple layers
+            for outbound_node in original_input_layer._outbound_nodes:
                 outbound_layer = outbound_node.outbound_layer
                 target_idx = model.layers.index(outbound_layer)
                 if target_idx == start:
@@ -67,7 +67,7 @@ def slice_dnn(model, start, end, input_tensors):
                     # Any inter-slice skip connections that are made here are not used in this slice
                     inter_slice_skips[name] = input_layers[name]
         else:
-            outbound_layer = input_layer._outbound_nodes[0].outbound_layer
+            outbound_layer = original_input_layer._outbound_nodes[0].outbound_layer
             target_idx = model.layers.index(outbound_layer)
             if target_idx == start:
                 tensors_to_start_layer.append(input_layers[name])
