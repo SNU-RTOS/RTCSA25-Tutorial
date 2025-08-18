@@ -167,7 +167,7 @@ def parse_arguments():
     return parser.parse_args()
 
 # Get slicing settings from user
-def get_slice_indices(num_layers):
+def get_slice_starts(num_layers):
     n = int(input("How many submodels? ").strip())
     if n < 1:
         raise ValueError("The number of submodels must be >= 1")
@@ -190,7 +190,7 @@ def get_slice_indices(num_layers):
         points = [0] + cuts + [num_layers - 1]
     
     slice_pairs = [(points[i], points[i+1]) for i in range(len(points)-1)]
-    slice_indices = [1] + [end + 1 for _, end in slice_pairs]
+    slice_starts = [1] + [end + 1 for _, end in slice_pairs]
     slice_ranges = [
         (points[i] + (0 if i == 0 else 1), points[i+1])
         for i in range(len(points)-1)
@@ -201,7 +201,7 @@ def get_slice_indices(num_layers):
     else:
         print(f"Layer index ranges for each submodel: {slice_ranges}")
     
-    return n, slice_indices
+    return n, slice_starts
 
 
 def main():
@@ -213,7 +213,7 @@ def main():
     
     # Ask the user for the number of slices and the index of the last layer in each slice
     num_layers = len(model.layers)
-    num_slices, slice_indices = get_slice_indices(num_layers)
+    num_slices, slice_starts = get_slice_starts(num_layers)
 
     # Create a dummy input tensor for the first slice
     input_shape = model.layers[0].input_shape[0][1:]
@@ -229,7 +229,7 @@ def main():
             slice_inputs = prepare_slice_inputs(slices[i-1])
 
         # Slice the model using slice_dnn
-        slice = slice_dnn(model, slice_indices[i], slice_indices[i+1]-1, slice_inputs)
+        slice = slice_dnn(model, slice_starts[i], slice_starts[i+1]-1, slice_inputs)
         slices.append(slice)
 
         # Convert and save the slice to a LiteRT model
