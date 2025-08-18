@@ -173,9 +173,9 @@ def get_slice_starts(num_layers):
         raise ValueError("The number of submodels must be >= 1")
 
     if n == 1:
-        points = [0, num_layers - 1]
+        points = [1, num_layers - 1]
     else:
-        ranges = [f"(0, x1)"]
+        ranges = [f"(1, x1)"]
         for i in range(1, n - 1):
             ranges.append(f"(x{i}+1, x{i+1})")
         ranges.append(f"(x{n-1}+1, {num_layers - 1})")
@@ -187,7 +187,7 @@ def get_slice_starts(num_layers):
         user_input = input(f"Enter {x_list}: ").strip()
         cuts = sorted(int(x) for x in user_input.split())
 
-        points = [0] + cuts + [num_layers - 1]
+        points = [1] + cuts + [num_layers - 1]
     
     slice_pairs = [(points[i], points[i+1]) for i in range(len(points)-1)]
     slice_starts = [1] + [end + 1 for _, end in slice_pairs]
