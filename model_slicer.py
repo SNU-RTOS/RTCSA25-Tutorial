@@ -173,13 +173,13 @@ def get_slice_starts(num_layers):
         raise ValueError("The number of submodels must be >= 1")
 
     if n == 1:
-        points = [1, num_layers - 1]
+        starts = [1, num_layers]
     else:
-        ranges = [f"(1, x1)"]
+        pairs_of_start_end = [f"(1, x1-1)"]
         for i in range(1, n - 1):
-            ranges.append(f"(x{i}+1, x{i+1})")
-        ranges.append(f"(x{n-1}+1, {num_layers - 1})")
-        range_str = ', '.join(ranges)
+            pairs_of_start_end.append(f"(x{i}, x{i+1}-1)")
+        pairs_of_start_end.append(f"(x{n-1}, {num_layers - 1})")
+        range_str = ', '.join(pairs_of_start_end)
 
         x_list = ' '.join([f"x{i}" for i in range(1, n)])
         print(f"Generated submodels look like: {range_str}")
@@ -187,21 +187,18 @@ def get_slice_starts(num_layers):
         user_input = input(f"Enter {x_list}: ").strip()
         cuts = sorted(int(x) for x in user_input.split())
 
-        points = [1] + cuts + [num_layers - 1]
-    
-    slice_pairs = [(points[i], points[i+1]) for i in range(len(points)-1)]
-    slice_starts = [1] + [end + 1 for _, end in slice_pairs]
-    slice_ranges = [
-        (points[i] + (0 if i == 0 else 1), points[i+1])
-        for i in range(len(points)-1)
+        starts = [1] + cuts + [num_layers] # last element is the sentinel
+
+    pairs_of_start_end = [
+        (starts[i], starts[i+1] - 1) for i in range(len(starts)-1)
     ]
 
     if n==1:
         print("Only converting the model")
     else:
-        print(f"Layer index ranges for each submodel: {slice_ranges}")
+        print(f"Layer index ranges for each submodel: {pairs_of_start_end}")
     
-    return n, slice_starts
+    return n, starts
 
 
 def main():
@@ -213,7 +210,7 @@ def main():
     
     # Ask the user for the number of slices and the index of the last layer in each slice
     num_layers = len(model.layers)
-    num_slices, slice_starts = get_slice_starts(num_layers)
+    num_slices, starts = get_slice_starts(num_layers)
 
     # Create a dummy input tensor for the first slice
     input_shape = model.layers[0].input_shape[0][1:]
@@ -229,7 +226,7 @@ def main():
             slice_inputs = prepare_slice_inputs(slices[i-1])
 
         # Slice the model using slice_dnn
-        slice = slice_dnn(model, slice_starts[i], slice_starts[i+1]-1, slice_inputs)
+        slice = slice_dnn(model, starts[i], starts[i+1]-1, slice_inputs)
         slices.append(slice)
 
         # Convert and save the slice to a LiteRT model
