@@ -37,7 +37,7 @@ InterStageQueue<StageOutput> stage0_to_stage1_queue;
 InterStageQueue<StageOutput> stage1_to_stage2_queue;
 InterStageQueue<StageOutput> stage2_to_stage3_queue;
 
-void stage0_thread_function(const std::vector<std::string>& images, int input_period_ms) {
+void stage0_worker(const std::vector<std::string>& images, int input_period_ms) {
     auto next_wakeup_time = std::chrono::high_resolution_clock::now();
     size_t idx = 0;
     do {
@@ -86,9 +86,9 @@ void stage0_thread_function(const std::vector<std::string>& images, int input_pe
 
     // Notify stage1_thread that no more data will be sent
     stage0_to_stage1_queue.signal_shutdown();
-} // end of stage0_thread_function
+} // end of stage0_worker
 
-void stage1_thread_function(tflite::Interpreter* interpreter) {
+void stage1_worker(tflite::Interpreter* interpreter) {
     StageOutput stage_output;
 
     while (stage0_to_stage1_queue.pop(stage_output)) {
@@ -140,9 +140,9 @@ void stage1_thread_function(tflite::Interpreter* interpreter) {
 
     // Notify stage2_thread that no more data will be sent
     stage1_to_stage2_queue.signal_shutdown();
-} // end of stage1_thread_function
+} // end of stage1_worker
 
-void stage2_thread_function(tflite::Interpreter* interpreter) {
+void stage2_worker(tflite::Interpreter* interpreter) {
     StageOutput stage_output;
 
     while (stage1_to_stage2_queue.pop(stage_output)) {
@@ -197,9 +197,9 @@ void stage2_thread_function(tflite::Interpreter* interpreter) {
     } // end of while loop
 
     stage2_to_stage3_queue.signal_shutdown();    
-} // end of stage2_thread_function
+} // end of stage2_worker
 
-void stage3_thread_function(std::unordered_map<int, std::string> class_labels_map) {
+void stage3_worker(std::unordered_map<int, std::string> class_labels_map) {
     StageOutput stage_output;
 
     while (stage2_to_stage3_queue.pop(stage_output)) {
@@ -223,7 +223,7 @@ void stage3_thread_function(std::unordered_map<int, std::string> class_labels_ma
 
         util::timer_stop(tlabel);
     } // end of while loop
-} // end of stage3_thread_function
+} // end of stage3_worker
 
 int main(int argc, char* argv[]) {
     /* Receive user input */
@@ -332,10 +332,10 @@ int main(int argc, char* argv[]) {
 
     /* Create and launch threads */
     // Hint: std::thread thread_name(function name, arguments...);
-    // 1. Launch stage0_thread_function in a new thread with images and input_period_ms
-    // 2. Launch stage1_thread_function in a new thread with submodel0 interpreter
-    // 3. Launch stage2_thread_function in a new thread with submodel1 interpreter
-    // 4. Launch stage3_thread_function in a new thread with class_labels_map
+    // 1. Launch stage0_worker in a new thread with images and input_period_ms
+    // 2. Launch stage1_worker in a new thread with submodel0 interpreter
+    // 3. Launch stage2_worker in a new thread with submodel1 interpreter
+    // 4. Launch stage3_worker in a new thread with class_labels_map
     // ======= Write your code here =======
     
 
