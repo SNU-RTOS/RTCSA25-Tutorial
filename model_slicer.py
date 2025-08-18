@@ -35,16 +35,16 @@ def slice_dnn(model, start, end, input_tensors):
 
     Key data structures:
         input_layers (dict): Newly created layers for the slice: one layer per input tensor
-        intra_slice_skips (dict): Tensor(s) used for processing intra-slice skip connections
-        inter_slice_skips (dict): Tensor(s) used for processing inter-slice skip connections
+        inside_ending_skips (dict): Tensor(s) used for processing inside-ending skip connections
+        outside_ending_skips (dict): Tensor(s) used for processing outside-ending skip connections
         tensors_to_start_layer (list): Tensor(s) to be fed into the start layer of the slice
         tensors_to_current_layer (list or KerasTensor): Tensor(s) to be fed into the current layer 
         tensors_from_current_layer (list or KerasTensor): Tensor(s) produced by the current layer
     """
     
     input_layers = {}
-    intra_slice_skips = {}     
-    inter_slice_skips = {} 
+    inside_ending_skips = {}     
+    outside_ending_skips = {} 
     tensors_to_start_layer = []    
 
     # 6-(1) Create input layers and figure out the usage of each input layer
@@ -54,30 +54,30 @@ def slice_dnn(model, start, end, input_tensors):
         input_layers[name] = tf.keras.layers.Input(shape=tensor.shape[1:], name=name)
         
         # Inspect an input layer’s outbound nodes to see where the model consumes it
-        original_input_layer = model.get_layer(name)
-        if len(original_input_layer._outbound_nodes) > 1: # If an input layer has multiple outbound layers, its output feeds multiple layers
-            for outbound_node in original_input_layer._outbound_nodes:
-                outbound_layer = outbound_node.outbound_layer
-                target_idx = model.layers.index(outbound_layer)
+        origin_layer = model.get_layer(name)
+        if len(origin_layer._outbound_nodes) > 1: # If an input layer has multiple outbound layers, its output feeds multiple layers
+            for origin_outbound_node in origin_layer._outbound_nodes:
+                origin_outbound_layer = origin_outbound_node.outbound_layer
+                target_idx = model.layers.index(origin_outbound_layer)
                 if target_idx == start:
                     tensors_to_start_layer.append(input_layers[name])
                 elif target_idx <= end and target_idx > start:
-                    intra_slice_skips[name] = input_layers[name]
+                    inside_ending_skips[name] = input_layers[name]
                 elif target_idx > end:
-                    # Any inter-slice skip connections that are made here are not used in this slice
-                    inter_slice_skips[name] = input_layers[name]
+                    # Any outside-ending skip connections that are made here are not used in this slice
+                    outside_ending_skips[name] = input_layers[name]
         else:
-            outbound_layer = original_input_layer._outbound_nodes[0].outbound_layer
-            target_idx = model.layers.index(outbound_layer)
+            origin_outbound_layer = origin_layer._outbound_nodes[0].outbound_layer
+            target_idx = model.layers.index(origin_outbound_layer)
             if target_idx == start:
                 tensors_to_start_layer.append(input_layers[name])
             elif target_idx <= end and target_idx > start:
-                intra_slice_skips[name] = input_layers[name]
+                inside_ending_skips[name] = input_layers[name]
             elif target_idx > end:
-                # Any inter-slice skip connections that are made here are not used in this slice
-                inter_slice_skips[name] = input_layers[name]
+                # Any outside-ending skip connections that are made here are not used in this slice
+                outside_ending_skips[name] = input_layers[name]
 
-    # 6-(2) Build layers and update intra-slice and inter-slice skip connections
+    # 6-(2) Build layers and update inside-ending and outside-ending skip connections
     # Case 5, 6, and 7
     # # Set the start layer's inputs from tensors_to_start_layer
     if(len(tensors_to_start_layer) == 1):
@@ -87,21 +87,21 @@ def slice_dnn(model, start, end, input_tensors):
     
     for i in range(start, end+1): 
         layer = model.layers[i]
-        inbound_layers = layer._inbound_nodes[0].inbound_layers
+        origin_inbound_layers = layer._inbound_nodes[0].inbound_layers
         
         # Build current (i-th) layer 
-        if isinstance(inbound_layers, list): # When current layer expects multiple inputs (list of KerasTensors)
+        if isinstance(origin_inbound_layers, list): # When current layer expects multiple inputs (list of KerasTensors)
             if(i == start):
                 tensors_from_current_layer = layer(tensors_to_current_layer)
             else: 
                 # NOTE: The model slicer assumes that the output of layer i is always used by layer i+1
                 tensors_to_current_layer = [tensors_to_current_layer] if not isinstance(tensors_to_current_layer, list) else tensors_to_current_layer
                 
-                # From inbound layers, collect the required intra-slice skip tensors
-                for inbound_layer in inbound_layers:
-                    intra_slice_skip = model.get_layer(inbound_layer.name)
-                    if intra_slice_skip.name not in [t.name.split('/')[0] for t in tensors_to_current_layer]:
-                        tensors_to_current_layer.append(intra_slice_skips[intra_slice_skip.name])
+                # From inbound layers, collect the required inside-ending skip tensors
+                for origin_inbound_layer in origin_inbound_layers:
+                    inside_ending_skip = model.get_layer(origin_inbound_layer.name)
+                    if inside_ending_skip.name not in [t.name.split('/')[0] for t in tensors_to_current_layer]:
+                        tensors_to_current_layer.append(inside_ending_skips[inside_ending_skip.name])
                 
                 # Call the functor of the current layer to build a new layer
                 try:
@@ -111,25 +111,25 @@ def slice_dnn(model, start, end, input_tensors):
                     raise ValueError(f"Failed to call layer {layer.name} with tensors {tensors_to_current_layer}. "
                                      "Please check the layer's call function and the input tensors.")            
         else: # When current layer expects a single input (KerasTensor)
-            if inbound_layers.name in intra_slice_skips:
-                tensors_from_current_layer = layer(intra_slice_skips[inbound_layers.name])
+            if origin_inbound_layers.name in inside_ending_skips:
+                tensors_from_current_layer = layer(inside_ending_skips[origin_inbound_layers.name])
             else:
                 tensors_from_current_layer = layer(tensors_to_current_layer)
 
-        # Update intra_slice_skips and inter_slice_skips based on the current layer's outbound nodes
+        # Update inside_ending_skips and outside_ending_skips based on the current layer's outbound nodes
         if i < end: # Ensure the current layer is not the slice's last layer
-            for outbound_node in layer._outbound_nodes: 
-                skip_target_idx = model.layers.index(outbound_node.outbound_layer)
+            for origin_outbound_node in layer._outbound_nodes: 
+                skip_target_idx = model.layers.index(origin_outbound_node.outbound_layer)
                 if skip_target_idx <= end and skip_target_idx > i + 1:
-                    intra_slice_skips[layer.name] = tensors_from_current_layer
+                    inside_ending_skips[layer.name] = tensors_from_current_layer
                 elif skip_target_idx > end:
-                    inter_slice_skips[layer.name] = tensors_from_current_layer
+                    outside_ending_skips[layer.name] = tensors_from_current_layer
 
         tensors_to_current_layer = tensors_from_current_layer # End of for i in range(start, end+1)
 
     # 6-(3) Set output tensors
-    if inter_slice_skips:
-        tensors_from_current_layer = [tensors_from_current_layer] + list(inter_slice_skips.values())
+    if outside_ending_skips:
+        tensors_from_current_layer = [tensors_from_current_layer] + list(outside_ending_skips.values())
 
     # 6-(4) Create and return the slice
     slice = tf.keras.models.Model(inputs=list(input_layers.values()), 
