@@ -38,8 +38,8 @@ def slice_dnn(model, start, end, input_tensors):
         inside_ending_skips (dict): Tensor(s) used for processing inside-ending skip connections
         outside_ending_skips (dict): Tensor(s) used for processing outside-ending skip connections
         tensors_to_start_layer (list): Tensor(s) to be fed into the start layer of the slice
-        tensors_to_current_layer (list or KerasTensor): Tensor(s) to be fed into the current layer 
-        tensors_from_current_layer (list or KerasTensor): Tensor(s) produced by the current layer
+        tensors_to_layer (list or KerasTensor): Tensor(s) to be fed into the current layer 
+        tensors_from_layer (list or KerasTensor): Tensor(s) produced by the current layer
     """
     
     input_layers = {}
@@ -81,68 +81,76 @@ def slice_dnn(model, start, end, input_tensors):
     # Case 5, 6, and 7
     # # Set the start layer's inputs from tensors_to_start_layer
     if(len(tensors_to_start_layer) == 1):
-        tensors_to_current_layer = tensors_to_start_layer[0]
+        tensors_to_layer = tensors_to_start_layer[0]
     else:
-        tensors_to_current_layer = tensors_to_start_layer
+        tensors_to_layer = tensors_to_start_layer
     
     for i in range(start, end+1): 
         layer = model.layers[i]
         origin_inbound_layers = layer._inbound_nodes[0].inbound_layers
         
+        # Skip the layer if it is an InputLayer
+        if isinstance(layer, tf.keras.layers.InputLayer):
+            continue
+
         # Build current (i-th) layer 
         if isinstance(origin_inbound_layers, list): # When current layer expects multiple inputs (list of KerasTensors)
             if(i == start):
-                tensors_from_current_layer = layer(tensors_to_current_layer)
+                tensors_from_layer = layer(tensors_to_layer)
             else: 
                 # NOTE: The model slicer assumes that the output of layer i is always used by layer i+1
-                tensors_to_current_layer = [tensors_to_current_layer] if not isinstance(tensors_to_current_layer, list) else tensors_to_current_layer
+                tensors_to_layer = [tensors_to_layer] if not isinstance(tensors_to_layer, list) else tensors_to_layer
                 
                 # From inbound layers, collect the required inside-ending skip tensors
                 for origin_inbound_layer in origin_inbound_layers:
                     inside_ending_skip = model.get_layer(origin_inbound_layer.name)
-                    if inside_ending_skip.name not in [t.name.split('/')[0] for t in tensors_to_current_layer]:
-                        tensors_to_current_layer.append(inside_ending_skips[inside_ending_skip.name])
+                    if inside_ending_skip.name not in [t.name.split('/')[0] for t in tensors_to_layer]:
+                        tensors_to_layer.append(inside_ending_skips[inside_ending_skip.name])
                 
                 # Call the functor of the current layer to build a new layer
                 try:
-                    tensors_from_current_layer = \
-                        layer(tensors_to_current_layer)
+                    tensors_from_layer = \
+                        layer(tensors_to_layer)
                 except: # When a custom layer's call signature deviates from Keras expectations
-                    raise ValueError(f"Failed to call layer {layer.name} with tensors {tensors_to_current_layer}. "
+                    raise ValueError(f"Failed to call layer {layer.name} with tensors {tensors_to_layer}. "
                                      "Please check the layer's call function and the input tensors.")            
         else: # When current layer expects a single input (KerasTensor)
             if origin_inbound_layers.name in inside_ending_skips:
-                tensors_from_current_layer = layer(inside_ending_skips[origin_inbound_layers.name])
+                tensors_from_layer = layer(inside_ending_skips[origin_inbound_layers.name])
             else:
-                tensors_from_current_layer = layer(tensors_to_current_layer)
+                tensors_from_layer = layer(tensors_to_layer)
 
         # Update inside_ending_skips and outside_ending_skips based on the current layer's outbound nodes
         if i < end: # Ensure the current layer is not the slice's last layer
             for origin_outbound_node in layer._outbound_nodes: 
                 skip_target_idx = model.layers.index(origin_outbound_node.outbound_layer)
                 if skip_target_idx <= end and skip_target_idx > i + 1:
-                    inside_ending_skips[layer.name] = tensors_from_current_layer
+                    inside_ending_skips[layer.name] = tensors_from_layer
                 elif skip_target_idx > end:
-                    outside_ending_skips[layer.name] = tensors_from_current_layer
+                    outside_ending_skips[layer.name] = tensors_from_layer
 
-        tensors_to_current_layer = tensors_from_current_layer # End of for i in range(start, end+1)
+        tensors_to_layer = tensors_from_layer # End of for i in range(start, end+1)
 
     # 6-(3) Set output tensors
     if outside_ending_skips:
-        tensors_from_current_layer = [tensors_from_current_layer] + list(outside_ending_skips.values())
+        tensors_from_layer = [tensors_from_layer] + list(outside_ending_skips.values())
 
     # 6-(4) Create and return the slice
+    print(input_layers)
     slice = tf.keras.models.Model(inputs=list(input_layers.values()), 
-                                  outputs=tensors_from_current_layer)
+                                  outputs=tensors_from_layer)
+    
+    #TODO: Save a slice in .h5 format and verify newly created input layers
+    slice.save(f"./models/submodel_{start}.h5")
     return slice
 
 # Prepare inputs for a slice
-def prepare_slice_inputs(slice):
-    next_inputs = {}
-    for output, output_tensor in zip(slice.outputs, slice.outputs):
+def get_outputs_of_previous_slice(previous_slice):
+    slice_outputs = {}
+    for output, output_tensor in zip(previous_slice.outputs, previous_slice.outputs):
         layer_name = output._keras_history[0].name
-        next_inputs[layer_name] = output_tensor
-    return next_inputs
+        slice_outputs[layer_name] = output_tensor
+    return slice_outputs
 
 # Save the slice as a LiteRT model
 def convert_save_slice(output_dir, slice, slice_num):
@@ -168,13 +176,28 @@ def parse_arguments():
 
 # Get slicing settings from user
 def get_slice_starts(num_layers):
-    n = int(input("How many submodels? ").strip())
-    if n < 1:
-        raise ValueError("The number of submodels must be >= 1")
+    # --- Ask for number of submodels ---
+    while True:
+        try:
+            n = int(input("How many submodels? ").strip())
+        except ValueError:
+            print("Please enter an integer.")
+            continue
 
+        if n < 1:
+            print("The number of submodels must be >= 1. Try again.")
+            continue
+        if n > num_layers:
+            print(f"Number of submodels cannot exceed {num_layers}. Try again.")
+            continue
+
+        break  # valid n found
+
+    # --- If only one submodel, no slicing ---
     if n == 1:
         starts = [1, num_layers]
     else:
+        # Show expected ranges
         pairs_of_start_end = [f"(1, x1-1)"]
         for i in range(1, n - 1):
             pairs_of_start_end.append(f"(x{i}, x{i+1}-1)")
@@ -184,20 +207,39 @@ def get_slice_starts(num_layers):
         x_list = ' '.join([f"x{i}" for i in range(1, n)])
         print(f"Generated submodels look like: {range_str}")
 
-        user_input = input(f"Enter {x_list}: ").strip()
-        cuts = sorted(int(x) for x in user_input.split())
+        # --- Ask for cut points until valid ---
+        while True:
+            user_input = input(f"Enter {x_list}: ").strip()
+            try:
+                cuts = [int(x) for x in user_input.split()]
+            except ValueError:
+                print("All cuts must be integers. Try again.")
+                continue
 
-        starts = [1] + cuts + [num_layers] # last element is the sentinel
+            if len(cuts) != n - 1:
+                print(f"You must enter exactly {n-1} cut values. Try again.")
+                continue
+
+            if not all(1 < c <= num_layers - 1 for c in cuts):
+                print(f"All cuts must be in the range (1, {num_layers-1}]. Try again.")
+                continue
+
+            if sorted(cuts) != cuts or len(set(cuts)) != len(cuts):
+                print("Cuts must be strictly increasing and unique. Try again.")
+                continue
+
+            starts = [1] + cuts + [num_layers]
+            break
 
     pairs_of_start_end = [
         (starts[i], starts[i+1] - 1) for i in range(len(starts)-1)
     ]
 
-    if n==1:
+    if n == 1:
         print("Only converting the model")
     else:
-        print(f"Layer index ranges for each submodel: {pairs_of_start_end}")
-    
+        print(f"✅ Layer index ranges for each submodel: {pairs_of_start_end}")
+
     return n, starts
 
 
@@ -213,17 +255,34 @@ def main():
     num_slices, starts = get_slice_starts(num_layers)
 
     # Create a dummy input tensor for the first slice
-    input_shape = model.layers[0].input_shape[0][1:]
-    dummy_input = np.random.rand(1, *input_shape)
+    #TODO: Enable taking models with multiple inputs
+    #TODO: Check the indices of a input layer
+    print(model.inputs)
+
+    # Number of input layers
+    print("Number of input layers:", len(model.inputs))
+
+    input_layers = [layer for layer in model.layers if isinstance(layer, tf.keras.layers.InputLayer)]
+    input_indices = [i for i, layer in enumerate(model.layers) if isinstance(layer, tf.keras.layers.InputLayer)]
+    print("Number of InputLayer objects:", len(input_layers))
+    print("Input layers:", input_layers)
+    print(input_indices)
+
+    # input_shape = model.layers[0].input_shape[0][1:]
+    # dummy_input = np.random.rand(1, *input_shape)
 
     # Perform slicing and conversion
     slices = []
+    slice_inputs = {}
     for i in range(num_slices):
         # Prepare inputs for each slice
         if i == 0:
-            slice_inputs = {model.layers[0].name: dummy_input}
+            for input_layer in model.inputs: # model.inputs returns a list of InputLayer 
+                slice_inputs[input_layer.name] = np.random.rand(1, *input_layer.shape[1:])
+            print(slice_inputs)
+            # slice_inputs = {model.layers[0].name: dummy_input}
         else:
-            slice_inputs = prepare_slice_inputs(slices[i-1])
+            slice_inputs = get_outputs_of_previous_slice(slices[i-1])
 
         # Slice the model using slice_dnn
         slice = slice_dnn(model, starts[i], starts[i+1]-1, slice_inputs)
