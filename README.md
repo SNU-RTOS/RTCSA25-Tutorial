@@ -151,7 +151,7 @@ A tool for **Slicing** and **Converting** a **.h5** model file into multiple **.
 How many submodels? 4
 Enter 3 slicing points for ranges: (1, x1-1), (x1, x2-1), (x2, x3-1), (x3, 176)
 Enter x1 x2 x3: 40 80 120
-Slicing ranges: [(0, 39), (40, 79), (80, 119), (120, 176)]
+Slicing ranges: [(1, 39), (40, 79), (80, 119), (120, 176)]
 Saved sliced tflite model to: ./models/sub_model_0.tflite
 Saved sliced tflite model to: ./models/sub_model_1.tflite
 Saved sliced tflite model to: ./models/sub_model_2.tflite
