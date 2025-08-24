@@ -149,9 +149,9 @@ A tool for **Slicing** and **Converting** a **.h5** model file into multiple **.
 ```bash
 (.ws_pip) rubikpi@RUBIKPi:~/workspace/RTCSA25-Tutorial$ python model_slicer.py --model-path ./models/resnet50.h5
 How many submodels? 4
-Enter 3 slicing points for ranges: (0, x1), (x1+1, x2), (x2+1, x3), (x3+1, 176)
+Enter 3 slicing points for ranges: (1, x1-1), (x1, x2-1), (x2, x3-1), (x3, 176)
 Enter x1 x2 x3: 40 80 120
-Slicing ranges: [(0, 40), (41, 80), (81, 120), (121, 176)]
+Slicing ranges: [(0, 39), (40, 79), (80, 119), (120, 176)]
 Saved sliced tflite model to: ./models/sub_model_0.tflite
 Saved sliced tflite model to: ./models/sub_model_1.tflite
 Saved sliced tflite model to: ./models/sub_model_2.tflite
