@@ -24,12 +24,6 @@
 #include "tflite/model_builder.h"
 #include "util.hpp"
 
-/* ================= Variable Naming Convention =================
-* Variables that start with a prefix _litert_ 
-* are objects or pointers directly related to inference via LiteRT 
-* This includes the model, interpreter, delegates, and tensors
-* ============================================================ */
-
 /* ============ Function Naming Convention of LiteRT ============
  * Public C++ class methods: UpperCamelCase (e.g., BuildFromFile)
  * Internal helpers: snake_case (e.g., typed_input_tensor)
@@ -70,48 +64,48 @@ int main(int argc, char *argv[])
     }
     
     /* Load model */
-    std::unique_ptr<tflite::FlatBufferModel> _litert_model = 
+    std::unique_ptr<tflite::FlatBufferModel> model = 
         tflite::FlatBufferModel::BuildFromFile(model_path.c_str());
-    if (!_litert_model)
+    if (!model)
     {
         std::cerr << "Failed to load model" << std::endl;
         return 1;
     }
 
     /* Build interpreter */
-    tflite::ops::builtin::BuiltinOpResolver _litert_resolver;
-    tflite::InterpreterBuilder _litert_builder(*_litert_model, _litert_resolver);
-    std::unique_ptr<tflite::Interpreter> _litert_interpreter;
-    _litert_builder(&_litert_interpreter);
-    if (!_litert_interpreter)
+    tflite::ops::builtin::BuiltinOpResolver resolver;
+    tflite::InterpreterBuilder builder(*model, resolver);
+    std::unique_ptr<tflite::Interpreter> interpreter;
+    builder(&interpreter);
+    if (!interpreter)
     {
         std::cerr << "Failed to Initialize Interpreter" << std::endl;
         return 1;
     }
 
     /* Apply either XNNPACK delegate or GPU delegate */
-    TfLiteDelegate* _litert_xnn_delegate = TfLiteXNNPackDelegateCreate(nullptr);
-    TfLiteDelegate* _litert_gpu_delegate = TfLiteGpuDelegateV2Create(nullptr);
+    TfLiteDelegate* xnn_delegate = TfLiteXNNPackDelegateCreate(nullptr);
+    TfLiteDelegate* gpu_delegate = TfLiteGpuDelegateV2Create(nullptr);
     if(gpu_usage) {
-        if (_litert_interpreter->ModifyGraphWithDelegate(_litert_gpu_delegate) == kTfLiteOk)
+        if (interpreter->ModifyGraphWithDelegate(gpu_delegate) == kTfLiteOk)
         {
             // Delete unused delegate
-            if(_litert_xnn_delegate) TfLiteXNNPackDelegateDelete(_litert_xnn_delegate);
+            if(xnn_delegate) TfLiteXNNPackDelegateDelete(xnn_delegate);
         } else {
             std::cerr << "Failed to Apply GPU Delegate" << std::endl;
         }
     } else {
-        if (_litert_interpreter->ModifyGraphWithDelegate(_litert_xnn_delegate) == kTfLiteOk)
+        if (interpreter->ModifyGraphWithDelegate(xnn_delegate) == kTfLiteOk)
         {
             // Delete unused delegate
-            if(_litert_gpu_delegate) TfLiteGpuDelegateV2Delete(_litert_gpu_delegate);
+            if(gpu_delegate) TfLiteGpuDelegateV2Delete(gpu_delegate);
         } else {
             std::cerr << "Failed to Apply XNNPACK Delegate" << std::endl;
         }
     }
 
     /* Allocate Tensors */
-    if (_litert_interpreter->AllocateTensors() != kTfLiteOk)
+    if (interpreter->AllocateTensors() != kTfLiteOk)
     {
         std::cerr << "Failed to Allocate Tensors" << std::endl;
         return 1;
@@ -143,15 +137,15 @@ int main(int argc, char *argv[])
                 util::preprocess_image_resnet(image, 224, 224);
 
         // Copy preprocessed_image to input_tensor
-        float* _litert_input_tensor = _litert_interpreter->typed_input_tensor<float>(0);
-        std::memcpy(_litert_input_tensor, preprocessed_image.ptr<float>(), 
+        float* input_tensor = interpreter->typed_input_tensor<float>(0);
+        std::memcpy(input_tensor, preprocessed_image.ptr<float>(), 
                     preprocessed_image.total() * preprocessed_image.elemSize());
 
         util::timer_stop(preprocess_label);
 
         util::timer_start(inference_label);
         /* Inference */
-        if (_litert_interpreter->Invoke() != kTfLiteOk)
+        if (interpreter->Invoke() != kTfLiteOk)
         {
             std::cerr << "Failed to invoke the interpreter" << std::endl;
             return 1;
@@ -161,10 +155,10 @@ int main(int argc, char *argv[])
         util::timer_start(postprocess_label);
         /* PostProcessing */
         // Get output tensor
-        float *_litert_output_tensor = _litert_interpreter->typed_output_tensor<float>(0);
+        float *output_tensor = interpreter->typed_output_tensor<float>(0);
         int num_classes = 1000; // Total 1000 classes
         std::vector<float> probs(num_classes);
-        std::memcpy(probs.data(), _litert_output_tensor, sizeof(float) * num_classes);
+        std::memcpy(probs.data(), output_tensor, sizeof(float) * num_classes);
 
         // Print Top-3 predictions every 10 iterations
         if ((count + 1) % 10 == 0) {
