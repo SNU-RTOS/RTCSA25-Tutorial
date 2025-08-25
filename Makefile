@@ -21,7 +21,7 @@ OBJ_DIR := obj
 OUT_DIR := bin
 
 # Executables
-TARGETS := inference_driver instrumentation_harness pipelined_inference_driver
+TARGETS := inference_driver instrumentation_harness pipelined_inference_driver pipelined_inference_driver_advanced
 
 # Compiler & flags
 CXX := g++
@@ -50,16 +50,19 @@ COMMON_SRCS := util.cpp
 INFERENCE_DRIVER_SRCS := inference_driver.cpp $(COMMON_SRCS)
 INST_HARNESS_SRCS := instrumentation_harness.cpp instrumentation_harness_utils.cpp $(COMMON_SRCS)
 PIPELINED_DRIVER_SRCS := pipelined_inference_driver.cpp $(COMMON_SRCS)
+ADVANCED_PIPELINED_DRIVER_SRCS := pipelined_inference_driver_advanced.cpp $(COMMON_SRCS)
 
 # Map sources to objects
 INFERENCE_DRIVER_OBJS := $(patsubst %.cpp,$(OBJ_DIR)/%.o,$(INFERENCE_DRIVER_SRCS))
 INST_HARNESS_OBJS := $(patsubst %.cpp,$(OBJ_DIR)/%.o,$(INST_HARNESS_SRCS))
 PIPELINED_DRIVER_OBJS := $(patsubst %.cpp,$(OBJ_DIR)/%.o,$(PIPELINED_DRIVER_SRCS))
+ADVANCED_PIPELINED_DRIVER_OBJS := $(patsubst %.cpp,$(OBJ_DIR)/%.o,$(ADVANCED_PIPELINED_DRIVER_SRCS))
 
 # Final binaries
 INFERENCE_DRIVER_BIN := $(OUT_DIR)/inference_driver
 INST_HARNESS_BIN := $(OUT_DIR)/instrumentation_harness
 PIPELINED_DRIVER_BIN := $(OUT_DIR)/pipelined_inference_driver
+ADVANCED_PIPELINED_DRIVER_BIN := $(OUT_DIR)/pipelined_inference_driver_advanced
 
 # ==============================
 # Build targets
@@ -73,7 +76,8 @@ all: $(INFERENCE_DRIVER_BIN) $(INST_HARNESS_BIN)
 # Optional single target build
 inference: $(INFERENCE_DRIVER_BIN)
 internals: $(INST_HARNESS_BIN)
-pipelined: $(PIPELINED_DRIVER_BIN)
+pipelined: $(PIPELINED_DRIVER_BIN) 
+advanced: $(ADVANCED_PIPELINED_DRIVER_BIN)
 
 # Build rules for each binary
 $(INFERENCE_DRIVER_BIN): $(INFERENCE_DRIVER_OBJS)
@@ -85,6 +89,10 @@ $(INST_HARNESS_BIN): $(INST_HARNESS_OBJS)
 	$(CXX) $(CXXFLAGS) $(INCS) $(LIBS) $^ -o $@ $(LDFLAGS)
 
 $(PIPELINED_DRIVER_BIN): $(PIPELINED_DRIVER_OBJS)
+	@mkdir -p $(OUT_DIR)
+	$(CXX) $(CXXFLAGS) $(INCS) $(LIBS) $^ -o $@ $(LDFLAGS)
+
+$(ADVANCED_PIPELINED_DRIVER_BIN): $(ADVANCED_PIPELINED_DRIVER_OBJS)
 	@mkdir -p $(OUT_DIR)
 	$(CXX) $(CXXFLAGS) $(INCS) $(LIBS) $^ -o $@ $(LDFLAGS)
 
