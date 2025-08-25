@@ -7,7 +7,7 @@
 # @Affiliation: Real-Time Operating System Laboratory, Seoul National University
 # @Created: 07/23/25
 # @Original Work: Based on minimal-litert-c repository (https://github.com/SNU-RTOS/minimal-litert-c)
-# @Modified by: GeonhaPark on 08/10/25
+# @Modified by: GeonhaPark on 08/26/25
 # @Contact: {nclee,ghpark,thkim}@redwood.snu.ac.kr
 #
 # @Description: Install script for RTCSA25 tutorial prerequisites
@@ -42,33 +42,28 @@ sudo apt install -y --no-install-recommends \
     llvm libncursesw5-dev xz-utils libxml2-dev \
     libxmlsec1-dev 
 
-# install Pyenv
+# install pyenv
 curl -fsSL https://pyenv.run | bash
 
-# update .bashrc
+# update pyenv configuration info to ~/.bashrc
+echo ""
 echo 'export PYENV_ROOT="$HOME/.pyenv"' >> ~/.bashrc
 echo 'export PATH="$PYENV_ROOT/bin:$PATH"' >> ~/.bashrc
 echo -e 'if command -v pyenv 1>/dev/null 2>&1; then\n  eval "$(pyenv init --path)"\n  eval "$(pyenv init -)"\nfi' >> ~/.bashrc
 source ~/.bashrc
 
-# install python 3.10.16
+# install python 3.10.16 via pyenv
 pyenv install 3.10.16
 pyenv global 3.10.16
 
 # create python virtual environment by using venv
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd ${SCRIPT_DIR}/..
-PROJECT_ROOT=$(pwd)
-echo "[INFO] Project root is ${PROJECT_ROOT}"
-
-VENV_ROOT="${PROJECT_ROOT}/.venv"
+VENV_ROOT="${HOME}/.venv"
 python3 -m venv ${VENV_ROOT}
-echo "[INFO] Created virtual environment at ${VENV_ROOT}"
 
-source ${VENV_ROOT}/bin/activate
-echo "export VENV_ROOT=\"${VENV_ROOT}\"" >> ~/.bashrc
-echo "source \$VENV_ROOT/bin/activate" >> ~/.bashrc
-echo "[INFO] Activated virtual environment: ${VENV_ROOT}"
+# update venv configuration info to ~/.bashrc
+echo "[INFO] Created virtual environment: ${VENV_ROOT}"
+echo 'export VENV_ROOT="$HOME/.venv"' >> ~/.bashrc
+echo 'source "$VENV_ROOT/bin/activate"' >> ~/.bashrc
 
 # install bazelisk and bazel
 if [ ! -f /usr/bin/bazel ]; then
