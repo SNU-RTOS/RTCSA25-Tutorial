@@ -56,13 +56,19 @@ source ~/.bashrc
 pyenv install 3.10.16
 pyenv global 3.10.16
 
+# get venv_root path (absolute path: .venv under project root)
+VENV_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/.venv"
+
+# get relative path of venv_root (use $HOME for compatibility in .bashrc)
+VENV_RELATIVE_ROOT="${VENV_ROOT/#${HOME}/\$HOME}"
+
 # create python virtual environment by using venv
-VENV_ROOT="${HOME}/.venv"
-python3 -m venv ${VENV_ROOT}
+# (venv requires absolute path, since venv writes absolute paths in activation scripts)
+python3 -m venv "$VENV_ROOT"
 
 # update venv configuration info to ~/.bashrc
 echo "[INFO] Created virtual environment: ${VENV_ROOT}"
-echo 'export VENV_ROOT="$HOME/.venv"' >> ~/.bashrc
+echo "export VENV_ROOT=\"${VENV_RELATIVE_ROOT}\"" >> ~/.bashrc
 echo 'source "$VENV_ROOT/bin/activate"' >> ~/.bashrc
 
 # install bazelisk and bazel
