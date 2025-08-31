@@ -98,8 +98,11 @@ def slice_dnn(model, start, end, input_tensors):
             if(i == start):
                 tensors_from_layer = layer(tensors_to_layer)
             else: 
-                # NOTE: The model slicer assumes that the output of layer i is always used by layer i+1
-                tensors_to_layer = [tensors_to_layer] if not isinstance(tensors_to_layer, list) else tensors_to_layer
+                # Check if layer i's output tensor(s) is used in layer i+1
+                if model.layers[i-1] in origin_inbound_layers:
+                    tensors_to_layer = [tensors_to_layer] if not isinstance(tensors_to_layer, list) else tensors_to_layer
+                else:
+                    tensors_to_layer = []
                 
                 # From inbound layers, collect the required inside-ending skip tensors
                 for origin_inbound_layer in origin_inbound_layers:
@@ -140,8 +143,6 @@ def slice_dnn(model, start, end, input_tensors):
     slice = tf.keras.models.Model(inputs=list(input_layers.values()), 
                                   outputs=tensors_from_layer)
     
-    #TODO: Save a slice in .h5 format and verify newly created input layers
-    slice.save(f"./models/submodel_{start}.h5")
     return slice
 
 # Prepare inputs for a slice
@@ -176,7 +177,7 @@ def parse_arguments():
 
 # Get slicing settings from user
 def get_slice_starts(num_layers):
-    # --- Ask for number of submodels ---
+    # Ask for number of submodels
     while True:
         try:
             n = int(input("How many submodels? ").strip())
@@ -193,7 +194,7 @@ def get_slice_starts(num_layers):
 
         break  # valid n found
 
-    # --- If only one submodel, no slicing ---
+    # If only one submodel, no slicing
     if n == 1:
         starts = [1, num_layers]
     else:
@@ -207,7 +208,7 @@ def get_slice_starts(num_layers):
         x_list = ' '.join([f"x{i}" for i in range(1, n)])
         print(f"Generated submodels look like: {range_str}")
 
-        # --- Ask for cut points until valid ---
+        # Ask for cut points until valid
         while True:
             user_input = input(f"Enter {x_list}: ").strip()
             try:
@@ -254,20 +255,6 @@ def main():
     num_layers = len(model.layers)
     num_slices, starts = get_slice_starts(num_layers)
 
-    # Create a dummy input tensor for the first slice
-    #TODO: Enable taking models with multiple inputs
-    #TODO: Check the indices of a input layer
-    print(model.inputs)
-
-    # Number of input layers
-    print("Number of input layers:", len(model.inputs))
-
-    input_layers = [layer for layer in model.layers if isinstance(layer, tf.keras.layers.InputLayer)]
-    input_indices = [i for i, layer in enumerate(model.layers) if isinstance(layer, tf.keras.layers.InputLayer)]
-    print("Number of InputLayer objects:", len(input_layers))
-    print("Input layers:", input_layers)
-    print(input_indices)
-
     # input_shape = model.layers[0].input_shape[0][1:]
     # dummy_input = np.random.rand(1, *input_shape)
 
@@ -279,7 +266,6 @@ def main():
         if i == 0:
             for input_layer in model.inputs: # model.inputs returns a list of InputLayer 
                 slice_inputs[input_layer.name] = np.random.rand(1, *input_layer.shape[1:])
-            print(slice_inputs)
             # slice_inputs = {model.layers[0].name: dummy_input}
         else:
             slice_inputs = get_outputs_of_previous_slice(slices[i-1])

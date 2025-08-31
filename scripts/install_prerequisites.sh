@@ -56,12 +56,14 @@ pyenv install 3.10.16
 pyenv global 3.10.16
 
 # create python virtual environment by using venv
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd ${SCRIPT_DIR}/..
-PROJECT_ROOT=$(pwd)
-echo "[INFO] Project root is ${PROJECT_ROOT}"
+# If you already have an existing venv and do not want interference please uncomment the following lines
+# SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# cd ${SCRIPT_DIR}/..
+# PROJECT_ROOT=$(pwd)
+# echo "[INFO] Project root is ${PROJECT_ROOT}"
+# VENV_ROOT="${PROJECT_ROOT}/.venv"
 
-VENV_ROOT="${PROJECT_ROOT}/.venv"
+VENV_ROOT="/home/.venv"
 python3 -m venv ${VENV_ROOT}
 echo "[INFO] Created virtual environment at ${VENV_ROOT}"
 

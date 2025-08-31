@@ -16,7 +16,8 @@ set -e  # Exit if any command fails
 
 # --------- CONFIGURATION ---------
 executable="./bin/inference_driver"
-model="./models/resnet50_int8.tflite"
+# model="./models/resnet50.tflite"
+model="/home/rtoslab/RTCSA25-Tutorial/models/resnet50.tflite"
 gpu_usage="true"
 class_labels="class_labels.json"
 base_images=(
@@ -28,7 +29,7 @@ base_images=(
     "./images/_images_6.png"
 )
 input_period_ms=0
-total_inputs=500 # adjust as needed
+total_inputs=100 # adjust as needed
 # ---------------------------------
 
 # Sanity check for files
