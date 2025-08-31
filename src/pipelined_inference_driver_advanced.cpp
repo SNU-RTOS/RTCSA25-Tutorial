@@ -159,21 +159,21 @@ void stage_worker(
     out_queue.signal_shutdown();
 } // end of stage_worker
 
-void stageEnd_worker(
+void stageK_worker(
     std::unordered_map<int, std::string> class_labels_map,
     InterStageQueue<StageOutput>& in_queue) 
 {
     StageOutput stage_output;
 
     while (in_queue.pop(stage_output)) {
-        std::string tlabel = "StageEnd " + std::to_string(stage_output.index);
+        std::string tlabel = "StageK " + std::to_string(stage_output.index);
         util::timer_start(tlabel);
 
         const std::vector<float>& probs = stage_output.data;
 
         if ((stage_output.index + 1) % 10 == 0) {
             auto top_k_indices = util::get_topK_indices(probs, 3);
-            std::cout << "\n[stageEnd] Top-3 prediction for image index "
+            std::cout << "\n[stageK] Top-3 prediction for image index "
                       << stage_output.index << ":\n";
             for (int idx : top_k_indices) {
                 std::string label = class_labels_map.count(idx)
@@ -186,7 +186,7 @@ void stageEnd_worker(
 
         util::timer_stop(tlabel);
     } // end of while loop
-} // end of stageEnd_worker
+} // end of stageK_worker
 
 int main(int argc, char* argv[]) {
     if (argc < 8) {
@@ -212,7 +212,7 @@ int main(int argc, char* argv[]) {
     }
 
     struct ModelSpec {
-        std::string path;
+        std::string submodel_path;
         bool gpu_usage;  // true -> GPU, false -> XNNPACK
     };
     std::vector<ModelSpec> specs;
@@ -223,14 +223,14 @@ int main(int argc, char* argv[]) {
             std::cerr << "Missing arguments for submodel " << i << "\n";
             return 1;
         }
-        std::string path = argv[argi++];
+        std::string submodel_path = argv[argi++];
         std::string gpu_s = argv[argi++];
         bool gpu_usage = (gpu_s == "true");
         if (!(gpu_s == "true" || gpu_s == "false")) {
             std::cerr << "gpu_usage for submodel " << i << " must be true or false\n";
             return 1;
         }
-        specs.push_back({path, gpu_usage});
+        specs.push_back({submodel_path, gpu_usage});
     }
 
     if (argi >= argc) {
@@ -262,21 +262,21 @@ int main(int argc, char* argv[]) {
     // Build models and interpreters
     tflite::ops::builtin::BuiltinOpResolver resolver;
 
-    std::vector<std::unique_ptr<tflite::FlatBufferModel>> models;
-    models.reserve(num_infer);
+    std::vector<std::unique_ptr<tflite::FlatBufferModel>> submodels;
+    submodels.reserve(num_infer);
     for (int i = 0; i < num_infer; ++i) {
-        auto mdl = tflite::FlatBufferModel::BuildFromFile(specs[i].path.c_str());
-        if (!mdl) {
-            std::cerr << "Failed to load model: " << specs[i].path << "\n";
+        auto submodel = tflite::FlatBufferModel::BuildFromFile(specs[i].submodel_path.c_str());
+        if (!submodel) {
+            std::cerr << "Failed to load model: " << specs[i].submodel_path << "\n";
             return 1;
         }
-        models.push_back(std::move(mdl));
+        submodels.push_back(std::move(submodel));
     }
 
-    std::vector<std::unique_ptr<tflite::Interpreter>> interps(num_infer);
+    std::vector<std::unique_ptr<tflite::Interpreter>> interpreters(num_infer);
     for (int i = 0; i < num_infer; ++i) {
-        tflite::InterpreterBuilder builder(*models[i], resolver);
-        if (builder(&interps[i]) != kTfLiteOk || !interps[i]) {
+        tflite::InterpreterBuilder builder(*submodels[i], resolver);
+        if (builder(&interpreters[i]) != kTfLiteOk || !interpreters[i]) {
             std::cerr << "Failed to create interpreter for stage " << i << "\n";
             return 1;
         }
@@ -286,28 +286,32 @@ int main(int argc, char* argv[]) {
     std::vector<TfLiteDelegate*> delegates(num_infer, nullptr);
     for (int i = 0; i < num_infer; ++i) {
         if (specs[i].gpu_usage) {
-            TfLiteGpuDelegateOptionsV2 gopt = TfLiteGpuDelegateOptionsV2Default();
-            delegates[i] = TfLiteGpuDelegateV2Create(&gopt);
+            // TfLiteGpuDelegateOptionsV2 gopt = TfLiteGpuDelegateOptionsV2Default();
+            delegates[i] = TfLiteGpuDelegateV2Create(nullptr);
             if (!delegates[i] ||
-                interps[i]->ModifyGraphWithDelegate(delegates[i]) != kTfLiteOk) {
-                std::cerr << "Failed to apply GPU delegate to stage " << i << "\n";
+                interpreters[i]->ModifyGraphWithDelegate(delegates[i]) != kTfLiteOk) {
+                std::cerr << "Failed to apply GPU delegate to submodel " << i << "\n";
                 return 1;
+            } else {
+                std::cout << "Applied GPU delegate to submodel " << i << "\n" << std::endl;
             }
         } else {
-            TfLiteXNNPackDelegateOptions xopt = TfLiteXNNPackDelegateOptionsDefault();
-            delegates[i] = TfLiteXNNPackDelegateCreate(&xopt);
+            // TfLiteXNNPackDelegateOptions xopt = TfLiteXNNPackDelegateOptionsDefault();
+            delegates[i] = TfLiteXNNPackDelegateCreate(nullptr);
             if (!delegates[i] ||
-                interps[i]->ModifyGraphWithDelegate(delegates[i]) != kTfLiteOk) {
-                std::cerr << "Failed to apply XNNPACK delegate to stage " << i << "\n";
+                interpreters[i]->ModifyGraphWithDelegate(delegates[i]) != kTfLiteOk) {
+                std::cerr << "Failed to apply XNNPACK delegate to submodel " << i << "\n";
                 return 1;
+            } else {
+                std::cout << "Applied XNNPACK delegate to submodel " << i << "\n" << std::endl;
             }
         }
     }
 
     // Allocate tensors
     for (int i = 0; i < num_infer; ++i) {
-        if (interps[i]->AllocateTensors() != kTfLiteOk) {
-            std::cerr << "Failed to allocate tensors for stage " << i << "\n";
+        if (interpreters[i]->AllocateTensors() != kTfLiteOk) {
+            std::cerr << "Failed to allocate tensors for submodel " << i << "\n";
             return 1;
         }
     }
@@ -330,22 +334,22 @@ int main(int argc, char* argv[]) {
         int stage_id = i + 1; // keep your metric naming
         threads.emplace_back(stage_worker,
                              stage_id,
-                             interps[i].get(),
+                             interpreters[i].get(),
                              std::ref(*inter_stage_queues[i]),
                              std::ref(*inter_stage_queues[i + 1]));
     }
 
     // Postprocessing stage
-    threads.emplace_back(stageEnd_worker, class_labels_map, std::ref(*inter_stage_queues[num_infer]));
+    threads.emplace_back(stageK_worker, class_labels_map, std::ref(*inter_stage_queues[num_infer]));
 
     // CPU affinity example plan
-    const std::vector<int> core_plan = {4,7,3,5,0,2,6,1};
+    const std::vector<int> core_plan = {4,7,5,6,3,0,1,2};
     auto pick_core = [&](int idx){ return core_plan[idx % core_plan.size()]; };
 
     util::set_cpu_affinity(threads[0], pick_core(0)); // stage0
     for (int i = 0; i < num_infer; ++i)
-        util::set_cpu_affinity(threads[1 + i], pick_core(1 + i)); // stage1..K
-    util::set_cpu_affinity(threads.back(), pick_core(1 + num_infer)); // post
+        util::set_cpu_affinity(threads[1 + i], pick_core(1 + i)); // stage1..K - 1
+    util::set_cpu_affinity(threads.back(), pick_core(1 + num_infer)); // stage K
 
     for (auto& th : threads) th.join();
     util::timer_stop("Total Latency");
@@ -358,7 +362,7 @@ int main(int argc, char* argv[]) {
         util::print_average_latency(s);
         util::print_average_latency(invoke_latency);
     }
-    util::print_average_latency("StageEnd");
+    util::print_average_latency("StageK");
     util::print_throughput("Total Latency", images.size());
 
     // Clean up delegates

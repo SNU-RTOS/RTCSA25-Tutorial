@@ -20,12 +20,14 @@ SUBMODELS=(
   "./models/submodel_0.tflite"
   "./models/submodel_1.tflite"
   "./models/submodel_2.tflite"
+  "./models/submodel_3.tflite"
 )
 
 # gpu_usage flags aligned 1:1 with SUBMODELS. "true" => GPU delegate, "false" => XNNPACK
 GPU_USAGES=(
   "false"
   "true"
+  "false"
   "false"
 )
 
@@ -42,7 +44,7 @@ BASE_IMAGES=(
 )
 
 input_period_ms=0
-total_inputs=100   # adjust as needed
+total_inputs=30   # adjust as needed
 # ---------------------------------
 
 # ---------- Sanity checks ----------
