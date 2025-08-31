@@ -255,9 +255,6 @@ def main():
     num_layers = len(model.layers)
     num_slices, starts = get_slice_starts(num_layers)
 
-    # input_shape = model.layers[0].input_shape[0][1:]
-    # dummy_input = np.random.rand(1, *input_shape)
-
     # Perform slicing and conversion
     slices = []
     slice_inputs = {}
