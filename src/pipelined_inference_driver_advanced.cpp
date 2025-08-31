@@ -343,7 +343,7 @@ int main(int argc, char* argv[]) {
     threads.emplace_back(stageK_worker, class_labels_map, std::ref(*inter_stage_queues[num_infer]));
 
     // CPU affinity example plan
-    const std::vector<int> core_plan = {4,7,5,6,3,0,1,2};
+    const std::vector<int> core_plan = {4,5,7,6,3,0,1,2};
     auto pick_core = [&](int idx){ return core_plan[idx % core_plan.size()]; };
 
     util::set_cpu_affinity(threads[0], pick_core(0)); // stage0

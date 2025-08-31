@@ -139,7 +139,6 @@ def slice_dnn(model, start, end, input_tensors):
         tensors_from_layer = [tensors_from_layer] + list(outside_ending_skips.values())
 
     # 6-(4) Create and return the slice
-    print(input_layers)
     slice = tf.keras.models.Model(inputs=list(input_layers.values()), 
                                   outputs=tensors_from_layer)
     
@@ -239,7 +238,7 @@ def get_slice_starts(num_layers):
     if n == 1:
         print("Only converting the model")
     else:
-        print(f"✅ Layer index ranges for each submodel: {pairs_of_start_end}")
+        print(f"Layer index ranges for each submodel: {pairs_of_start_end}")
 
     return n, starts
 
@@ -263,7 +262,6 @@ def main():
         if i == 0:
             for input_layer in model.inputs: # model.inputs returns a list of InputLayer 
                 slice_inputs[input_layer.name] = np.random.rand(1, *input_layer.shape[1:])
-            # slice_inputs = {model.layers[0].name: dummy_input}
         else:
             slice_inputs = get_outputs_of_previous_slice(slices[i-1])
 

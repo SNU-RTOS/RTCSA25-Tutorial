@@ -19,16 +19,16 @@ executable="./bin/pipelined_inference_driver_advanced"
 SUBMODELS=(
   "./models/submodel_0.tflite"
   "./models/submodel_1.tflite"
-  # "./models/submodel_2.tflite"
+  "./models/submodel_2.tflite"
   # "./models/submodel_3.tflite"
 )
 
 # gpu_usage flags aligned 1:1 with SUBMODELS. "true" => GPU delegate, "false" => XNNPACK
 GPU_USAGES=(
   "false"
+  "false"
   "true"
-  # "false"
-  # "false"
+  # "true"
 )
 
 class_labels="class_labels.json"
@@ -44,7 +44,7 @@ BASE_IMAGES=(
 )
 
 input_period_ms=0
-total_inputs=30   # adjust as needed
+total_inputs=300   # adjust as needed
 # ---------------------------------
 
 # ---------- Sanity checks ----------
